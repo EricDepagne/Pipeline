@@ -32,10 +32,10 @@ def find_thar_files():
 
 
 def fit_orders_pair(arcfile):
-    plt.clf()
+    # plt.clf()
     print('Arc file : {file}'.format(file=arcfile))
     ff = fits.open(arcfile)
-    center = ff[0].header['NAXIS1']/2
+    center = int(ff[0].header['NAXIS1']/2)
     chip = ff[0].header['DETNAM']
     parameters = {
             'HBDET': {
@@ -47,10 +47,11 @@ def fit_orders_pair(arcfile):
                 'Distance': 40
                     }
                 }
-    cut = ff[0].data[:, int(center)]
+    cut = ff[0].data[:, center]
     cutfiltered = savgol_filter(cut, 11, 3)
     peaks = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
     goodpeaks = []
+    orderpositions = {}
     for i in range(peaks.shape[0]-1, 0, -1):
         if cutfiltered[peaks[i]] < parameters[chip]['Level'] or (peaks[i]-peaks)[i-1] > parameters[chip]['Distance']:  # We find doublets of peaks, in order to fit both sky and object at the same time
             # print('Wrong !{0}, {1}, {2}'.format(i, peaks[i], peaks[i-1]))
@@ -58,20 +59,46 @@ def fit_orders_pair(arcfile):
         # print(i, peaks[i], cutfiltered[peaks[i]])
         goodpeaks.append(i)
     print('peaks : {goodpeaks}'.format(goodpeaks=goodpeaks))
-    plt.plot(cutfiltered)
-    plt.scatter(peaks[goodpeaks], cutfiltered[peaks[goodpeaks]], c='green')
+    # plt.plot(cutfiltered)
+    # plt.scatter(peaks[goodpeaks], cutfiltered[peaks[goodpeaks]], c='green')
     for i in range(len(goodpeaks)):
         xg = np.arange(peaks[goodpeaks][i]-50, peaks[goodpeaks][i]+20)
-        plt.plot(xg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
+        # plt.plot(xg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
         g1 = models.Gaussian1D(amplitude=1., mean=peaks[goodpeaks[i]], stddev=5)
         g2 = models.Gaussian1D(amplitude=1., mean=peaks[goodpeaks[i]]-30, stddev=5)
         gg_init = g1 + g2
         fitter = fitting.SLSQPLSQFitter()
     # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
         gg_fit = fitter(gg_init, xg, cutfiltered[xg]/cutfiltered[peaks[goodpeaks[i]]], verblevel=0)
-        plt.plot(xg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(xg))
+        # print('Center of the order {order} : {science} and {sky}'.format(order=i, science=gg_fit.mean_0, sky=gg_fit.mean_1))
+        if i == 7:
+            scis = gg_fit.mean_0
+            skys = gg_fit.mean_1
+        if i == 6:
+            sci = gg_fit.mean_0
+            sky = gg_fit.mean_1
+            amp = cutfiltered[peaks[goodpeaks[i]]]
+            skyorder = []
+            scienceorder = []
+            positions = []
+            for index in range(180):
+                y = center+10*index
+                xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
+                ymobile = ff[0].data[xmobile, y]
+                g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
+                g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
+                g = g1 + g2
+                gfit = fitter(g, xmobile, ymobile/amp, verblevel=0)
+                sci = gfit.mean_0
+                sky = gfit.mean_1
+                print('Center of fibres at position {p} : sky : {sky}, sci : {sci}.'.format(p=y, sci=sci.value, sky=sky.value))
+                skyorder.append(sky.value)
+                scienceorder.append(sci.value)
+                positions.append(y)
 
-    # return goodpeaks
+        # plt.plot(xg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(xg))
+
+    return scienceorder, skyorder, positions
 
 
 def fit_dual_orders(arcfile):
