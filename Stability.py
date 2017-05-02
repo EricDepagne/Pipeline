@@ -58,7 +58,6 @@ def find_peaks(arc):
 def fit_orders_pair(arcdata):
     # plt.clf()
     cut = arcdata[:, parameters['center']]
-    orderpositions = {}
     order = {}
     # print('peaks : {goodpeaks}'.format(goodpeaks=goodpeaks))
     # plt.plot(cutfiltered)
@@ -67,7 +66,7 @@ def fit_orders_pair(arcdata):
     print(goodpeaks)
     for i in range(2, len(goodpeaks)-1):
     # for i in range(1, 28):
-        print('Detecting order number {order}. Peak : {pixel}counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
+        print('Detecting order number {order}. Peak : {pixel} counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
         xg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
         # print(xg)
         # plt.plot(xg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
@@ -89,12 +88,18 @@ def fit_orders_pair(arcdata):
         # print(sci, sky, amp)
 # TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
 # pas la peine d'utiliser parameters[; center'] non plus, c'est une constante
-        for index in range(100):
+# Computing how many steps are needed to parse the orders.
+        center = parameters['center']
+        nbpixperstep = 11 # how far from a fit do we go to fit the next.
+        steps = np.int((parameters['Y2']-center)/nbpixperstep)
+        # for index in range(180):
+        for index in range(steps-1):
             try:
-                y = parameters['center']+10*index
-            except IndexError:
+                y = center+nbpixperstep*index
+            except IndexError as e:
                 print('Out of bounds')
                 break
+            #print('pixel :{y} at step {step}'.format(y=y, step=index))
             xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
             ymobile = arcdata[xmobile, y]
             # print('center : {center}, index : {index}'.format(center=parameters['center'], index=index))
@@ -114,16 +119,16 @@ def fit_orders_pair(arcdata):
             positions.append(y)
             fit.append(gfit)
         order.update({str(i): fit})
-        orderpositions.update({str(i): positions})
+        order.update({'X': positions})
 
         # plt.plot(xg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(xg))
 
-    return order, orderpositions
+    return order
 
 
 def assess_stability():
     arclist = classify_files()
-    print(arclist)
+    # print(arclist)
     return arclist
 
 
@@ -145,7 +150,11 @@ def set_parameters(arcfile):
             'Y': ff[0].header['NAXIS2'],
             'center': int(ff[0].header['NAXIS1']/2),
             'chip': ff[0].header['DETNAM'],
-            'data': ff[0].data
+            'data': ff[0].data,
+            'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
+            'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
+            'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
+            'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1])
                 }
     return parameters
 
@@ -156,19 +165,28 @@ def prepare_data(data):
     else:
         bias = fits.open('H201704150021.fits')
     flat = fits.open(data)
-    datasec = flat[0].header['DATASEC']
-    print(datasec)
-    x1, x2 = datasec[1:8].split(':')
-    y1, y2 = datasec[9:15].split(':')
     # print(x1, x2, y1, y2)
 
-    dt = flat[0].data[np.int(y1):np.int(y2), np.int(x1):np.int(x2)] - bias[0].data.mean()
+    dt = flat[0].data[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
     hist, bins = np.histogram(dt, bins=50)
     dt[np.where(dt >= bins[-2])] = bins[2]
 
     return dt
+
+
 def plot_orders(orderframe, orderpositions):
+    print(orderpositions.keys())
+    plt.clf()
+    plt.imshow(orderframe)
+    for o in orderpositions.keys():
+        print('Order {order}'.format(order=o))
+        if 'X' in o:
+            continue
+        for i in range(len(orderpositions[o])):
+            plt.scatter(orderpositions['X'][i], orderpositions[o][i].mean_0.value)
+            plt.scatter(orderpositions['X'][i], orderpositions[o][i].mean_1.value)
+
     pass
 
 
@@ -178,4 +196,4 @@ if __name__ == "__main__":
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
     data = prepare_data(arcfiles['Flat'][3])
-    # order, pos = fit_orders_pair(data)
+    order = fit_orders_pair(data)
