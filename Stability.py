@@ -21,14 +21,24 @@ from scipy.signal import find_peaks_cwt
 import matplotlib.pylab as plt
 
 
-def find_thar_files():
-    l = []
+def classify_files():
+    files = {}
+    thar = []
+    bias = []
+    flat = []
+
     ffile = glob('*.fits')
     for f in ffile:
         with fits.open(f) as fh:
-            if 'STABLE' in fh[0].header['PROPID']:
-                l.append(f)
-    return l
+            h = fh[0].header['PROPID']
+            if 'STABLE' in h:
+                thar.append(f)
+            if 'CAL_FLAT' in h:
+                flat.append(f)
+            if 'BIAS' in h:
+                bias.append(f)
+    files.update({'ThAr': thar, 'Bias': bias, 'Flat': flat})
+    return files
 
 
 def find_peaks(arc):
@@ -49,15 +59,15 @@ def fit_orders_pair(arcdata):
     # plt.clf()
     cut = arcdata[:, parameters['center']]
     orderpositions = {}
-    skyfiberposition = {}
-    sciencefiberposition = {}
+    order = {}
     # print('peaks : {goodpeaks}'.format(goodpeaks=goodpeaks))
     # plt.plot(cutfiltered)
     # plt.scatter(peaks[goodpeaks], cutfiltered[peaks[goodpeaks]], c='green')
     goodpeaks = find_peaks(cut)
-    for i in range(len(goodpeaks)-1):
-    # for i in range(6, 24):
-        print('Detecting order number {order} pixel. Peak : {peak} at {pixel}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
+    print(goodpeaks)
+    for i in range(2, len(goodpeaks)-1):
+    # for i in range(1, 28):
+        print('Detecting order number {order}. Peak : {pixel}counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
         xg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
         # print(xg)
         # plt.plot(xg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
@@ -75,8 +85,11 @@ def fit_orders_pair(arcdata):
         skyorder = []
         scienceorder = []
         positions = []
+        fit = []
         # print(sci, sky, amp)
-        for index in range(180):
+# TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
+# pas la peine d'utiliser parameters[; center'] non plus, c'est une constante
+        for index in range(100):
             try:
                 y = parameters['center']+10*index
             except IndexError:
@@ -84,6 +97,8 @@ def fit_orders_pair(arcdata):
                 break
             xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
             ymobile = arcdata[xmobile, y]
+            # print('center : {center}, index : {index}'.format(center=parameters['center'], index=index))
+            # print('sci : {sci}, sky {sky}\nxmobile : {xmobile}, y: {y}, ymobile : {ymobile}'.format(xmobile=xmobile.shape,y=y, ymobile=ymobile, sci=sci.value, sky=sky.value))
             g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
             g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
             g = g1 + g2
@@ -97,17 +112,17 @@ def fit_orders_pair(arcdata):
             skyorder.append(sky.value)
             scienceorder.append(sci.value)
             positions.append(y)
-        sciencefiberposition.update({str(i): scienceorder})
-        skyfiberposition.update({str(i): skyorder})
+            fit.append(gfit)
+        order.update({str(i): fit})
         orderpositions.update({str(i): positions})
 
         # plt.plot(xg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(xg))
 
-    return sciencefiberposition, skyfiberposition, orderpositions
+    return order, orderpositions
 
 
 def assess_stability():
-    arclist = find_thar_files()
+    arclist = classify_files()
     print(arclist)
     return arclist
 
@@ -117,12 +132,14 @@ def set_parameters(arcfile):
     ff = fits.open(arcfile)
     parameters = {
             'HBDET': {
-                'Level': 800,
-                'Distance': 30
+                'Level': 50,
+                'Distance': 30,
+                'NOrder': 27
                     },
             'HRDET': {
-                'Level': 800,
-                'Distance': 40
+                'Level': 50,
+                'Distance': 40,
+                'NOrder': 33
                     },
             'X': ff[0].header['NAXIS1'],
             'Y': ff[0].header['NAXIS2'],
@@ -133,12 +150,32 @@ def set_parameters(arcfile):
     return parameters
 
 
+def prepare_data(data):
+    if parameters['chip'] == 'HRDET':
+        bias = fits.open('R201704150021.fits')
+    else:
+        bias = fits.open('H201704150021.fits')
+    flat = fits.open(data)
+    datasec = flat[0].header['DATASEC']
+    print(datasec)
+    x1, x2 = datasec[1:8].split(':')
+    y1, y2 = datasec[9:15].split(':')
+    # print(x1, x2, y1, y2)
+
+    dt = flat[0].data[np.int(y1):np.int(y2), np.int(x1):np.int(x2)] - bias[0].data.mean()
+# We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
+    hist, bins = np.histogram(dt, bins=50)
+    dt[np.where(dt >= bins[-2])] = bins[2]
+
+    return dt
+def plot_orders(orderframe, orderpositions):
+    pass
+
+
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    parameters = set_parameters(arcfiles[3])
-    bbias = fits.open('H201704150021.fits')
-    rbias = fits.open('R201704150021.fits')
-    tp = fits.open('R201704120017.fits')
-    # Test with bias removal
-    #sci, sky, pos = fit_orders_pair(tp[0].data)
-    sci, sky, pos = fit_orders_pair(tp[0].data-rbias[0].data)
+    parameters = set_parameters(arcfiles['Flat'][3])
+    # tp = fits.open('H201704120017.fits')
+    tp = 'H201704120017.fits'
+    data = prepare_data(arcfiles['Flat'][3])
+    # order, pos = fit_orders_pair(data)
