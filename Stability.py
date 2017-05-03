@@ -64,21 +64,17 @@ def fit_orders_pair(arcdata):
     # plt.scatter(peaks[goodpeaks], cutfiltered[peaks[goodpeaks]], c='green')
     goodpeaks = find_peaks(cut)
     print(goodpeaks)
+# Cette boucle est probablement vectorisable. ON doit pouvoir parser tous les ordres en même temps, car ils sont tous indépendants.
+#
     for i in range(2, len(goodpeaks)-1):
-    # for i in range(1, 28):
         print('Detecting order number {order}. Peak : {pixel} counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
         xg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
-        # print(xg)
-        # plt.plot(xg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
         g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
         g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
         gg_init = g1 + g2
         fitter = fitting.SLSQPLSQFitter()
     # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
         gg_fit = fitter(gg_init, xg, cut[xg]/cut[xg].max(), verblevel=0)
-
-        # gg_fit = fitter(gg_init, xg, cutfiltered[xg]/cutfiltered[goodpeaks[i]], verblevel=0)
-        # print('Center of the order {order} : {science} and {sky}'.format(order=i, science=gg_fit.mean_0, sky=gg_fit.mean_1))
         sci = gg_fit.mean_0
         sky = gg_fit.mean_1
         skyorder = []
@@ -87,23 +83,20 @@ def fit_orders_pair(arcdata):
         fit = []
         # print(sci, sky, amp)
 # TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
-# pas la peine d'utiliser parameters[; center'] non plus, c'est une constante
-# Computing how many steps are needed to parse the orders.
         center = parameters['center']
-        nbpixperstep = 11 # how far from a fit do we go to fit the next.
-        steps = np.int((parameters['Y2']-center)/nbpixperstep)
-        # for index in range(180):
-        for index in range(steps-1):
+        nbpixperstep = 11  # how far from a fit do we go to fit the next.
+# Computing how many steps are needed to parse the orders.
+        steps = np.int((parameters['X2']-parameters['X1']-center)/nbpixperstep)
+# Cette boucle n'est pas vectorisable, car chaque étape dépend du résultat de la précédente pour parser l'order
+        for index in range(steps):
             try:
                 y = center+nbpixperstep*index
             except IndexError as e:
                 print('Out of bounds')
                 break
-            #print('pixel :{y} at step {step}'.format(y=y, step=index))
+            #print('y : {y} step {step}'.format(y=y, step=steps))
             xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
             ymobile = arcdata[xmobile, y]
-            # print('center : {center}, index : {index}'.format(center=parameters['center'], index=index))
-            # print('sci : {sci}, sky {sky}\nxmobile : {xmobile}, y: {y}, ymobile : {ymobile}'.format(xmobile=xmobile.shape,y=y, ymobile=ymobile, sci=sci.value, sky=sky.value))
             g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
             g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
             g = g1 + g2
@@ -176,24 +169,25 @@ def prepare_data(data):
 
 
 def plot_orders(orderframe, orderpositions):
-    print(orderpositions.keys())
     plt.clf()
     plt.imshow(orderframe)
     for o in orderpositions.keys():
-        print('Order {order}'.format(order=o))
+        y1 = []
+        y2 = []
+        x = []
         if 'X' in o:
             continue
         for i in range(len(orderpositions[o])):
-            plt.scatter(orderpositions['X'][i], orderpositions[o][i].mean_0.value)
-            plt.scatter(orderpositions['X'][i], orderpositions[o][i].mean_1.value)
-
-    pass
+            x.append(orderpositions['X'][i])
+            y1.append(orderpositions[o][i].mean_0.value)
+            y2.append(orderpositions[o][i].mean_1.value)
+        plt.plot(x, y1, 'blue', x, y2, 'red')
 
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    parameters = set_parameters(arcfiles['Flat'][3])
+    parameters = set_parameters(arcfiles['Flat'][-1])
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    data = prepare_data(arcfiles['Flat'][3])
+    data = prepare_data(arcfiles['Flat'][-1])
     order = fit_orders_pair(data)
