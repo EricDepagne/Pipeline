@@ -66,55 +66,60 @@ def fit_orders_pair(arcdata):
     print(goodpeaks)
 # Cette boucle est probablement vectorisable. ON doit pouvoir parser tous les ordres en même temps, car ils sont tous indépendants.
 #
-    for i in range(2, len(goodpeaks)-1):
-        print('Detecting order number {order}. Peak : {pixel} counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
-        xg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
-        g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
-        g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
-        gg_init = g1 + g2
-        fitter = fitting.SLSQPLSQFitter()
-    # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
-        gg_fit = fitter(gg_init, xg, cut[xg]/cut[xg].max(), verblevel=0)
-        sci = gg_fit.mean_0
-        sky = gg_fit.mean_1
-        skyorder = []
-        scienceorder = []
-        positions = []
-        fit = []
-        # print(sci, sky, amp)
-# TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
+# yyg contains the pixels at the center of the chip where the orders are.
+# This is the origin of the gaussian fits.
+    # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
+    for i in range(1, len(goodpeaks)-1):
         center = parameters['center']
         nbpixperstep = 11  # how far from a fit do we go to fit the next.
 # Computing how many steps are needed to parse the orders.
         steps = np.int((parameters['X2']-parameters['X1']-center)/nbpixperstep)
+        skyorder = []
+        scienceorder = []
+        positions = []
+        fit = []
+        print('Detecting order number {order}. Peak : {pixel} counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
+        for direction in [-1, 1]:
+            yg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
+            # plt.plot(yg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
+            g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
+            g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
+            gg_init = g1 + g2
+            fitter = fitting.SLSQPLSQFitter()
+        # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
+            gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
+            sci = gg_fit.mean_0
+            sky = gg_fit.mean_1
+        # print(sci, sky, amp)
+# TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
 # Cette boucle n'est pas vectorisable, car chaque étape dépend du résultat de la précédente pour parser l'order
-        for index in range(steps):
-            try:
-                y = center+nbpixperstep*index
-            except IndexError as e:
-                print('Out of bounds')
-                break
-            #print('y : {y} step {step}'.format(y=y, step=steps))
-            xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
-            ymobile = arcdata[xmobile, y]
-            g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
-            g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
-            g = g1 + g2
-            gfit = fitter(g, xmobile, ymobile/ymobile.max(), verblevel=0)
-            if gfit.mean_0 > parameters['Y'] or gfit.mean_1 > parameters['Y']:
-                print('Out of bounds')
-                break
-            sci = gfit.mean_0
-            sky = gfit.mean_1
-            # print('Center of fibres at position {p} : sky : {sky}, sci : {sci}.'.format(p=y, sci=sci.value, sky=sky.value))
-            skyorder.append(sky.value)
-            scienceorder.append(sci.value)
-            positions.append(y)
-            fit.append(gfit)
+            for index in range(steps):
+                try:
+                    y = center+nbpixperstep*index*direction
+                except IndexError as e:
+                    print('Out of bounds')
+                    break
+                # print('y : {y}, step {step}, direction {direction}'.format(y=y, step=steps, direction=direction))
+                xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
+                ymobile = arcdata[xmobile, y]
+                g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
+                g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
+                g = g1 + g2
+                gfit = fitter(g, xmobile, ymobile/ymobile.max(), verblevel=0)
+                if gfit.mean_0 > parameters['Y'] or gfit.mean_1 > parameters['Y']:
+                    print('Out of bounds')
+                    break
+                sci = gfit.mean_0
+                sky = gfit.mean_1
+                # print('Center of fibres at position {p} : sky : {sky}, sci : {sci}.'.format(p=y, sci=sci.value, sky=sky.value))
+                skyorder.append(sky.value)
+                scienceorder.append(sci.value)
+                positions.append(y)
+                fit.append(gfit)
         order.update({str(i): fit})
         order.update({'X': positions})
 
-        # plt.plot(xg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(xg))
+        # plt.plot(yg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(yg))
 
     return order
 
@@ -190,4 +195,4 @@ if __name__ == "__main__":
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
     data = prepare_data(arcfiles['Flat'][-1])
-    order = fit_orders_pair(data)
+    # order = fit_orders_pair(data)
