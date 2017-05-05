@@ -78,7 +78,7 @@ def fit_orders_pair(arcdata):
         scienceorder = []
         positions = []
         fit = []
-        print('Detecting order number {order}. Peak : {pixel} counts  at pixel {peak}'.format(order=i, peak=goodpeaks[i], pixel=cut[goodpeaks[i]]))
+        print('Detecting order number {order}.'.format(order=i,))
         for direction in [-1, 1]:
             yg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
             # plt.plot(yg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
@@ -124,6 +124,9 @@ def fit_orders_pair(arcdata):
                 scienceorder.append(sci.value)
                 positions.append(y)
                 fit.append(gfit)
+            if direction == -1:
+                fit = fit[::-1]
+                positions = positions[::-1]
         order.update({str(i): fit})
         order.update({'X': positions})
 
@@ -203,8 +206,8 @@ def plot_orders(orderframe, orderpositions):
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    parameters = set_parameters(arcfiles['Flat'][-1])
+    parameters = set_parameters(arcfiles['Flat'][3])
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    data = prepare_data(arcfiles['Flat'][-1])
-    #order = fit_orders_pair(data)
+    data = prepare_data(arcfiles['Flat'][3])
+    order = fit_orders_pair(data)
