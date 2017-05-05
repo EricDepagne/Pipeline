@@ -90,7 +90,6 @@ def fit_orders_pair(arcdata):
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
             sci = gg_fit.mean_0
             sky = gg_fit.mean_1
-        # print(sci, sky, amp)
 # TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
 # Cette boucle n'est pas vectorisable, car chaque étape dépend du résultat de la précédente pour parser l'order
             for index in range(steps):
@@ -99,8 +98,17 @@ def fit_orders_pair(arcdata):
                 except IndexError as e:
                     print('Out of bounds')
                     break
-                # print('y : {y}, step {step}, direction {direction}'.format(y=y, step=steps, direction=direction))
+                #print('y : {y}, step {step}, direction {direction}'.format(y=y, step=steps, direction=direction))
+                # print(sci.value, sky.value)
+                if sci.value+20>parameters['Y2']-1:
+                    #print('Overflow at {sci} for order {order}'.format(sci=sci.value, order=i))
+                    continue
+                # print(sci.value, sky.value)
                 xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
+                #print('xmobile : {xmobile}'.format(xmobile=xmobile.shape))
+                if xmobile.shape[0] == 0:
+                    print('Not enough points to find the orders. Skipping')
+                    continue
                 ymobile = arcdata[xmobile, y]
                 g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
                 g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
@@ -186,6 +194,10 @@ def plot_orders(orderframe, orderpositions):
             x.append(orderpositions['X'][i])
             y1.append(orderpositions[o][i].mean_0.value)
             y2.append(orderpositions[o][i].mean_1.value)
+#         x.sort()
+#         y1.sort()
+#         y2.sort()
+        #x = orderpositions['X'][:int(len(orderpositions['X'])/2)][::-1] + orderpositions['X'][int(len(orderpositions['X'])/2):]
         plt.plot(x, y1, 'blue', x, y2, 'red')
 
 
@@ -195,4 +207,4 @@ if __name__ == "__main__":
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
     data = prepare_data(arcfiles['Flat'][-1])
-    # order = fit_orders_pair(data)
+    #order = fit_orders_pair(data)
