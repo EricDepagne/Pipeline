@@ -90,8 +90,6 @@ def fit_orders_pair(arcdata):
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
             sci = gg_fit.mean_0
             sky = gg_fit.mean_1
-# TODO : y n'a pas besoin d'être calculé à chaque fois, il ne change jamais
-# Cette boucle n'est pas vectorisable, car chaque étape dépend du résultat de la précédente pour parser l'order
             for index in range(steps):
                 try:
                     y = center+nbpixperstep*index*direction
