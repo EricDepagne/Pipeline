@@ -85,6 +85,7 @@ def fit_orders_pair(arcdata):
             g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
             g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
             gg_init = g1 + g2
+# In the compound results, parameters with _o are relative to the science fibre, and those with _1 are the sky fibre.
             fitter = fitting.SLSQPLSQFitter()
         # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
@@ -96,14 +97,14 @@ def fit_orders_pair(arcdata):
                 except IndexError as e:
                     print('Out of bounds')
                     break
-                #print('y : {y}, step {step}, direction {direction}'.format(y=y, step=steps, direction=direction))
+                # print('y : {y}, step {step}, direction {direction}'.format(y=y, step=steps, direction=direction))
                 # print(sci.value, sky.value)
-                if sci.value+20>parameters['Y2']-1:
-                    #print('Overflow at {sci} for order {order}'.format(sci=sci.value, order=i))
+                if sci.value+20 > parameters['Y2']-1:
+                    # print('Overflow at {sci} for order {order}'.format(sci=sci.value, order=i))
                     continue
                 # print(sci.value, sky.value)
                 xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
-                #print('xmobile : {xmobile}'.format(xmobile=xmobile.shape))
+                # print('xmobile : {xmobile}'.format(xmobile=xmobile.shape))
                 if xmobile.shape[0] == 0:
                     print('Not enough points to find the orders. Skipping')
                     continue
@@ -125,7 +126,13 @@ def fit_orders_pair(arcdata):
             if direction == -1:
                 fit = fit[::-1]
                 positions = positions[::-1]
-        order.update({str(i): fit})
+        order.update({
+                    str(i): {
+                        'fit': fit,
+                        'zscience' : None,
+                        'zsky' : None
+                        }
+                    })
         order.update({'X': positions})
 
         # plt.plot(yg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(yg))
@@ -191,16 +198,48 @@ def plot_orders(orderframe, orderpositions):
         x = []
         if 'X' in o:
             continue
-        for i in range(len(orderpositions[o])):
+        for i in range(len(orderpositions[o]['fit'])):
             x.append(orderpositions['X'][i])
-            y1.append(orderpositions[o][i].mean_0.value)
-            y2.append(orderpositions[o][i].mean_1.value)
-#         x.sort()
-#         y1.sort()
-#         y2.sort()
-        #x = orderpositions['X'][:int(len(orderpositions['X'])/2)][::-1] + orderpositions['X'][int(len(orderpositions['X'])/2):]
+            y1.append(orderpositions[o]['fit'][i].mean_0.value)
+            y2.append(orderpositions[o]['fit'][i].mean_1.value)
+        # print(x, y1)
         plt.plot(x, y1, 'blue', x, y2, 'red')
 
+
+def extract_order(data, orderpositions, polyorder=7):
+    print('Extracting orders\n')
+    from scipy.integrate import romberg
+# romberg(function, a, b) gives the area under the curve.
+# gf1 = models.Gaussian1D(amplitude=func.amplitude_0, mean=func.mean_0, stddev=func.stddev_0)
+    #plt.clf()
+# first we fit each orders
+    t = {}
+    for o in orderpositions.keys():
+        print('Clef: {key}'.format(key=o))
+        y1 = []
+        y2 = []
+        x = []
+        if 'X' in o:
+            continue
+        for i in range(len(orderpositions[o]['fit'])):
+            x.append(orderpositions['X'][i])
+            y1.append(orderpositions[o]['fit'][i].mean_0.value)
+            y2.append(orderpositions[o]['fit'][i].mean_1.value)
+        zscience = np.poly1d(np.polyfit(x, y1, polyorder))
+        zsky = np.poly1d(np.polyfit(x, y2, polyorder))
+        plt.plot(x, zscience(x) - y1 + np.int(o), 'orange', x, zsky(x)-y2+np.int(o), 'turquoise')
+# We now store the polynomial for each fibre in the order dictionary
+        t.update({
+                        str(o): {
+                            'fit' : orderpositions[o]['fit'],
+                            'zscience': zscience,
+                            'zsky': zsky
+                            }
+                        })
+    # We update the orderpositions with the science and sky fits for each order
+    print('t:{t}'.format(t=t))
+    orderpositions.update(t)
+    return orderpositions
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
@@ -208,4 +247,4 @@ if __name__ == "__main__":
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
     data = prepare_data(arcfiles['Flat'][3])
-    order = fit_orders_pair(data)
+    #order = fit_orders_pair(data)
