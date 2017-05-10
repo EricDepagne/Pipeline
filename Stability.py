@@ -71,7 +71,7 @@ def fit_orders_pair(arcdata):
     # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
     for i in range(1, len(goodpeaks)-1):
         center = parameters['center']
-        nbpixperstep = 11  # how far from a fit do we go to fit the next.
+        nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
 # Computing how many steps are needed to parse the orders.
         steps = np.int((parameters['X2']-parameters['X1']-center)/nbpixperstep)
         skyorder = []
@@ -171,7 +171,8 @@ def set_parameters(arcfile):
             'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
             'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
             'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
-            'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1])
+            'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
+            'nbpixperstep': 11
                 }
     return parameters
 
@@ -224,14 +225,20 @@ def extract_order(data, orderpositions, polyorder=7):
     band = []
     t = []
     extracted = []
-    for pixel in np.arange(parameters['X1'], parameters['X2']):
+    for pixel in np.arange(parameters['X1'], parameters['X2']):  # , parameters['nbpixperstep']): on peut sans doute y aller 11 par 11
 #        print('pixel : {pixel}'.format(pixel=pixel))
+        if pixel < X[0]:
+# We start  exrtracting at the first measured point.
+            continue
         if pixel in X:
-            i = X.index(pixel)
-            print('----------------')
-            print(i, X[i], X[0], X[-1], len(t))
+            # We are at the beginning of the interval where we want to extract the data.
+            # The fits at the first pixels are known.
+            # The rest have to be guessed.
 
-    # for i in range(len(func)):
+            i = X.index(pixel)
+#            print('----------------')
+#            print(i, X[i], X[0], X[-1], len(t))
+
             ycenterscience = func[i].mean_0.value
             ycentersky = func[i].mean_1.value
             ystart = ycentersky - 30
@@ -239,7 +246,6 @@ def extract_order(data, orderpositions, polyorder=7):
             yinterval = np.arange(ystart, ystop, 0.1)
             band.append(ystart)
             band.append(ystop)
-            #print('Evaluation at position {x}\n Center of science order: {yscience}\nCenter of sky order: {ysky}'.format(x=X[i], yscience=ycenterscience, ysky=ycentersky))
             ofit_0 = models.Gaussian1D(amplitude=func[i].amplitude_0, mean=func[i].mean_0.value, stddev=func[i].stddev_0)
             ofit_1 = models.Gaussian1D(amplitude=func[i].amplitude_1, mean=func[i].mean_1.value, stddev=func[i].stddev_1)
 #        plt.plot(yinterval, ofit_0(yinterval), 'red', yinterval, ofit_1(yinterval), 'blue')
@@ -247,8 +253,11 @@ def extract_order(data, orderpositions, polyorder=7):
             extracted.append(romberg(ofit_1, ystart, ystop))
             t.append(i)
             print(i, X[i], X[0], X[-1], len(t))
+            # 
 
         else:
+            # print('Interpolating the gaussian fits between the current measured pixel {current} and the next one {following}'.format(current=pixel, following=X[i+1]))
+            # startfit = 0
             continue
             # print('Not yet')
     print(len(extracted))
