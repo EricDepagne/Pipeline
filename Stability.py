@@ -172,7 +172,7 @@ def set_parameters(arcfile):
             'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
             'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
             'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
-            'nbpixperstep': 11
+            'nbpixperstep': 1
                 }
     return parameters
 
@@ -197,17 +197,23 @@ def plot_orders(orderframe, orderpositions):
     plt.clf()
     plt.imshow(orderframe)
     for o in orderpositions.keys():
-        y1 = []
-        y2 = []
+        y1c = []
+        y1b = []
+        y1t = []
+        y2b = []
+        y2t = []
+        y2c = []
         x = []
         if 'X' in o:
             continue
         for i in range(len(orderpositions[o]['fit'])):
             x.append(orderpositions['X'][i])
-            y1.append(orderpositions[o]['fit'][i].mean_0.value)
-            y2.append(orderpositions[o]['fit'][i].mean_1.value)
+            y1c.append(orderpositions[o]['fit'][i].mean_0.value)
+            y1t.append(orderpositions[o]['fit'][i].mean_0.value - 2*orderpositions[o]['fit'][i].stddev_0)
+            y1b.append(orderpositions[o]['fit'][i].mean_0.value + 2*orderpositions[o]['fit'][i].stddev_0)
+            y2c.append(orderpositions[o]['fit'][i].mean_1.value)
         # print(x, y1)
-        plt.plot(x, y1, 'blue', x, y2, 'red')
+        plt.plot(x, y1c, 'blue', x, y2c, 'red', x, y1b, 'blue', x, y1t, 'blue')
 
 
 def extract_order(data, orderpositions, polyorder=7):
@@ -235,42 +241,61 @@ def extract_order(data, orderpositions, polyorder=7):
                 }
                 )
     print(orderpolynom)
-    band = []
     t = []
     extracted = []
-    for pixel in np.arange(parameters['X1'], parameters['X2']):  # , parameters['nbpixperstep']): on peut sans doute y aller 11 par 11
-#        print('pixel : {pixel}'.format(pixel=pixel))
+    for pixel in np.arange(parameters['X1'], min(data.shape[1],parameters['X2'])):
         if pixel < X[0]:
-# We start  exrtracting at the first measured point.
             continue
-        print('extracting outside stepped pixels {pixel}'.format(pixel=pixel))
-        # print('Interpolating the gaussian fits between the current measured pixel {current} and the next one {following}'.format(current=pixel, following=X[i+1]))
         try:
             i = X.index(pixel)
             keepi = i
         except ValueError:
             i = keepi
+#         ycenterscience = orderpolynom['yscience'](pixel)
+#         ycentersky = orderpolynom['ysky'](pixel)
+        y1c = orderpositions[o]['fit'][i].mean_0.value
+        # y1b = np.int(orderpositions[o]['fit'][i].mean_0.value - 2*orderpositions[o]['fit'][i].stddev_0)+1
+        y1b = np.int(orderpolynom['yscience'](pixel) - 2*orderpositions[o]['fit'][i].stddev_0)+1
+        y1t = np.int(orderpolynom['yscience'](pixel) + 2*orderpositions[o]['fit'][i].stddev_0)
+        print(y1b, y1t, pixel, data[y1b:y1t,pixel].sum())
+        extracted.append(data[y1b:y1t,pixel].sum())
 
-        print('index : {i}'.format(i=i))
-        ycenterscience = orderpolynom['yscience'][pixel]
-        ycentersky = orderpolynom['ysky'][pixel]
-        ystart = ycentersky - 30
-        ystop = ycenterscience + 30
-        yinterval = np.arange(ystart, ystop, 0.1)
-        band.append(ystart)
-        band.append(ystop)
-        ofit_0 = models.Gaussian1D(amplitude=func[i].amplitude_0, mean=ycenterscience, stddev=func[i].stddev_0)
-        ofit_1 = models.Gaussian1D(amplitude=func[i].amplitude_1, mean=ycentersky, stddev=func[i].stddev_1)
-        extracted.append(romberg(ofit_0, ystart, ystop))
-        extracted.append(romberg(ofit_1, ystart, ystop))
-        t.append(pixel)
-    print(len(extracted))
-    print(len(t))
-
-    plt.plot(t, extracted[::2], 'orange', t, extracted[1::2], 'purple')
     return extracted
-    # plt.plot(X, band[::2], 'orange', X, band[1::2], 'purple')
-    # return orderpositions
+
+
+
+
+#     for pixel in np.arange(parameters['X1'], parameters['X2']):  # , parameters['nbpixperstep']): on peut sans doute y aller 11 par 11
+# #        print('pixel : {pixel}'.format(pixel=pixel))
+#         if pixel < X[0]:
+# # We start  exrtracting at the first measured point.
+#             continue
+#         print('extracting outside stepped pixels {pixel}'.format(pixel=pixel))
+#         # print('Interpolating the gaussian fits between the current measured pixel {current} and the next one {following}'.format(current=pixel, following=X[i+1]))
+#         try:
+#             i = X.index(pixel)
+#             keepi = i
+#         except ValueError:
+#             i = keepi
+# 
+#         print('index : {i}'.format(i=i))
+#         ycenterscience = orderpolynom['yscience'](pixel)
+#         ycentersky = orderpolynom['ysky'](pixel)
+#         ystart = ycentersky - 30
+#         ystop = ycenterscience + 30
+#         print(ystart, ystop, ycentersky)
+#         ofit_0 = models.Gaussian1D(amplitude=func[i].amplitude_0, mean=ycenterscience, stddev=func[i].stddev_0)
+#         ofit_1 = models.Gaussian1D(amplitude=func[i].amplitude_1, mean=ycentersky, stddev=func[i].stddev_1)
+#         extracted.append(romberg(ofit_0, ystart, ystop))
+#         extracted.append(romberg(ofit_1, ystart, ystop))
+#         t.append(pixel)
+#     print(len(extracted))
+#     print(len(t))
+# 
+#     #plt.plot(t, extracted[::2], 'orange', t, extracted[1::2], 'purple')
+#     return extracted
+#     # plt.plot(X, band[::2], 'orange', X, band[1::2], 'purple')
+#     # return orderpositions
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
