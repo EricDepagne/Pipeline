@@ -219,9 +219,22 @@ def extract_order(data, orderpositions, polyorder=7):
 # first we fit each orders
     t = {}
     # We try firts on one particular order.
-    o = '16'
+    o = '26'
     func = orderpositions[o]['fit']
     X = orderpositions['X']
+    orderpolynom = {}
+    ysky = []
+    yscience = []
+    for i in range(len(func)):
+        # We fit the shape of the order
+        ysky.append(func[i].mean_1.value)
+        yscience.append(func[i].mean_0.value)
+    orderpolynom.update({
+                'yscience': np.poly1d(np.polyfit(X, yscience, polyorder)),
+                'ysky': np.poly1d(np.polyfit(X, ysky, polyorder))
+                }
+                )
+    print(orderpolynom)
     band = []
     t = []
     extracted = []
@@ -230,41 +243,32 @@ def extract_order(data, orderpositions, polyorder=7):
         if pixel < X[0]:
 # We start  exrtracting at the first measured point.
             continue
-        if pixel in X:
-            # We are at the beginning of the interval where we want to extract the data.
-            # The fits at the first pixels are known.
-            # The rest have to be guessed.
-
+        print('extracting outside stepped pixels {pixel}'.format(pixel=pixel))
+        # print('Interpolating the gaussian fits between the current measured pixel {current} and the next one {following}'.format(current=pixel, following=X[i+1]))
+        try:
             i = X.index(pixel)
-#            print('----------------')
-#            print(i, X[i], X[0], X[-1], len(t))
+            keepi = i
+        except ValueError:
+            i = keepi
 
-            ycenterscience = func[i].mean_0.value
-            ycentersky = func[i].mean_1.value
-            ystart = ycentersky - 30
-            ystop = ycenterscience + 30
-            yinterval = np.arange(ystart, ystop, 0.1)
-            band.append(ystart)
-            band.append(ystop)
-            ofit_0 = models.Gaussian1D(amplitude=func[i].amplitude_0, mean=func[i].mean_0.value, stddev=func[i].stddev_0)
-            ofit_1 = models.Gaussian1D(amplitude=func[i].amplitude_1, mean=func[i].mean_1.value, stddev=func[i].stddev_1)
-#        plt.plot(yinterval, ofit_0(yinterval), 'red', yinterval, ofit_1(yinterval), 'blue')
-            extracted.append(romberg(ofit_0, ystart, ystop))
-            extracted.append(romberg(ofit_1, ystart, ystop))
-            t.append(i)
-            print(i, X[i], X[0], X[-1], len(t))
-            # 
-
-        else:
-            # print('Interpolating the gaussian fits between the current measured pixel {current} and the next one {following}'.format(current=pixel, following=X[i+1]))
-            # startfit = 0
-            continue
-            # print('Not yet')
+        print('index : {i}'.format(i=i))
+        ycenterscience = orderpolynom['yscience'][pixel]
+        ycentersky = orderpolynom['ysky'][pixel]
+        ystart = ycentersky - 30
+        ystop = ycenterscience + 30
+        yinterval = np.arange(ystart, ystop, 0.1)
+        band.append(ystart)
+        band.append(ystop)
+        ofit_0 = models.Gaussian1D(amplitude=func[i].amplitude_0, mean=ycenterscience, stddev=func[i].stddev_0)
+        ofit_1 = models.Gaussian1D(amplitude=func[i].amplitude_1, mean=ycentersky, stddev=func[i].stddev_1)
+        extracted.append(romberg(ofit_0, ystart, ystop))
+        extracted.append(romberg(ofit_1, ystart, ystop))
+        t.append(pixel)
     print(len(extracted))
     print(len(t))
-    print(len(X))
 
-    plt.plot(X, extracted[::2], 'orange', X, extracted[1::2], 'purple')
+    plt.plot(t, extracted[::2], 'orange', t, extracted[1::2], 'purple')
+    return extracted
     # plt.plot(X, band[::2], 'orange', X, band[1::2], 'purple')
     # return orderpositions
 
