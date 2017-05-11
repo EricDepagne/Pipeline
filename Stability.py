@@ -69,7 +69,8 @@ def fit_orders_pair(arcdata):
 # yyg contains the pixels at the center of the chip where the orders are.
 # This is the origin of the gaussian fits.
     # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
-    for i in range(1, len(goodpeaks)-1):
+    # for i in range(1, len(goodpeaks)-1):
+    for i in range(10,15):
         center = parameters['center']
         nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
 # Computing how many steps are needed to parse the orders.
@@ -85,13 +86,13 @@ def fit_orders_pair(arcdata):
             g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
             g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
             gg_init = g1 + g2
-# In the compound results, parameters with _0 are relative to the science fibre, and those with _1 are the sky fibre.
+# In the compound results, parameters with _1 are relative to the science fibre, and those with _0 are the sky fibre.
             fitter = fitting.SLSQPLSQFitter()
         # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
             sci = gg_fit.mean_0
             sky = gg_fit.mean_1
-            for index in range(steps):
+            for index in range(steps+1):
                 if direction == 1 and index == 0:
                     # We do not need to redo the point at the center.
                     continue
@@ -129,17 +130,28 @@ def fit_orders_pair(arcdata):
             if direction == -1:
                 fit = fit[::-1]
                 positions = positions[::-1]
-        order.update({
-                    str(i): {
-                        'fit': fit,
-                        'zscience': None,
-                        'zsky': None
-                        }
-                    })
+            ysky = []
+            yscience = []
+            pfit = {}
+            polyorder = 7
+            for f in range(len(fit)):
+                ysky.append(fit[f].mean_0.value)
+                yscience.append(fit[f].mean_1.value)
+            pfit.update(
+                    {
+                        'yscience': np.poly1d(np.polyfit(positions, yscience, polyorder)),
+                        'ysky': np.poly1d(np.polyfit(positions, ysky, polyorder)),
+                        'fit': fit
+                    }
+                    )
+        order.update(
+                {
+                    str(i): pfit
+                    }
+                )
         order.update({'X': positions})
 
-        # plt.plot(yg, cutfiltered[peaks[goodpeaks[i]]]*gg_fit(yg))
-
+    print(len(order['10']['fit']))
     return order
 
 
@@ -183,7 +195,6 @@ def prepare_data(data):
     else:
         bias = fits.open('H201704150021.fits')
     flat = fits.open(data)
-    # print(x1, x2, y1, y2)
 
     dt = flat[0].data[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
@@ -194,35 +205,46 @@ def prepare_data(data):
 
 
 def plot_orders(orderframe, orderpositions):
+    from astropy.visualization import ZScaleInterval
+    (vmin, vmax) = ZScaleInterval().get_limits(orderframe)
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
     for o in orderpositions.keys():
-        y1c = []
-        y1b = []
-        y1t = []
-        y2c = []
-        y2b = []
-        y2t = []
+        yskyc = []
+        yskyb = []
+        yskyt = []
+        ysciencec = []
+        yscienceb = []
+        ysciencet = []
         x = []
         if 'X' in o:
             continue
-        for i in range(len(orderpositions[o]['fit'])):
-            x.append(orderpositions['X'][i])
-            y1c.append(orderpositions[o]['fit'][i].mean_0.value)
-            y1t.append(orderpositions[o]['fit'][i].mean_0.value - 2.5*orderpositions[o]['fit'][i].stddev_0)
-            y1b.append(orderpositions[o]['fit'][i].mean_0.value + 2.5*orderpositions[o]['fit'][i].stddev_0)
-            y2c.append(orderpositions[o]['fit'][i].mean_1.value)
-            y2t.append(orderpositions[o]['fit'][i].mean_1.value - 2.5*orderpositions[o]['fit'][i].stddev_1)
-            y2b.append(orderpositions[o]['fit'][i].mean_1.value + 2.5*orderpositions[o]['fit'][i].stddev_1)
-        ax.annotate(o, xy=(200, y1c[0]), color='white')
+        # for i in range(len(orderpositions[o]['fit'])):
+        for pixel in range(orderframe.shape[1]):
+
+            # x.append(orderpositions['X'][i])
+            if pixel < orderpositions['X'][0]:
+                continue
+            try: 
+                i = orderpositions['X'].index(pixel)
+                keepi = i
+            except ValueError:
+                i = keepi
+            x.append(pixel)
+            yskyc.append(orderpositions[o]['fit'][i].mean_0.value)
+            yskyt.append(orderpositions[o]['fit'][i].mean_0.value - 2.5*orderpositions[o]['fit'][i].stddev_0)
+            yskyb.append(orderpositions[o]['fit'][i].mean_0.value + 2.5*orderpositions[o]['fit'][i].stddev_0)
+            ysciencec.append(orderpositions[o]['fit'][i].mean_1.value)
+            ysciencet.append(orderpositions[o]['fit'][i].mean_1.value - 2.5*orderpositions[o]['fit'][i].stddev_1)
+            yscienceb.append(orderpositions[o]['fit'][i].mean_1.value + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        ax.annotate(o, xy=(200, yskyc[0]), color='white')
         # print(x, y1)
         # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
-        ax.plot(x, y1b, 'blue',  x, y1t, 'blue', x, y1c, 'green', linewidth=0.5)
-        ax.plot(x, y2b, 'red',  x, y2t, 'red', x, y2c, 'green', linewidth=0.5)
-    print(len(y1c))
-    ax.imshow(orderframe)
-    return y1c, x
+        ax.plot(x, yskyb, 'blue',  x, yskyt, 'blue', x, yskyc, 'green', linewidth=0.5)
+        ax.plot(x, yscienceb, 'red',  x, ysciencet, 'red', x, ysciencec, 'green', linewidth=0.5)
+    ax.imshow(orderframe, vmin=vmin, vmax=vmax)
+    # return y1c, x
 
 
 def extract_order(data, orderpositions, order, polyorder=7):
@@ -231,19 +253,19 @@ def extract_order(data, orderpositions, order, polyorder=7):
     o = str(order)
     func = orderpositions[o]['fit']
     X = orderpositions['X']
-    orderpolynom = {}
-    ysky = []
-    yscience = []
-    for i in range(len(func)):
-        # We fit the shape of the order
-        ysky.append(func[i].mean_1.value)
-        yscience.append(func[i].mean_0.value)
-    orderpolynom.update({
-                'yscience': np.poly1d(np.polyfit(X, yscience, polyorder)),
-                'ysky': np.poly1d(np.polyfit(X, ysky, polyorder))
-                }
-                )
-    # print(orderpolynom)
+#     orderpolynom = {}
+#     ysky = []
+#     yscience = []
+#     for i in range(len(func)):
+#         # We fit the shape of the order
+#         ysky.append(func[i].mean_0.value)
+#         yscience.append(func[i].mean_1.value)
+#     orderpolynom.update({
+#                 'yscience': np.poly1d(np.polyfit(X, yscience, polyorder)),
+#                 'ysky': np.poly1d(np.polyfit(X, ysky, polyorder))
+#                 }
+#                 )
+#     print(orderpolynom)
     extracted = []
     for pixel in np.arange(parameters['X1'], min(data.shape[1], parameters['X2'])):
         if pixel < X[0]:
@@ -253,14 +275,14 @@ def extract_order(data, orderpositions, order, polyorder=7):
             keepi = i
         except ValueError:
             i = keepi
-        scb = np.int(orderpolynom['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
-        sct = np.int(orderpolynom['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
-        extracted.append(np.average(data[scb:sct, pixel]))
-        skb = np.int(orderpolynom['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)+1
-        skt = np.int(orderpolynom['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        skb = np.int(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
+        skt = np.int(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+        extracted.append(np.average(data[skb:skt, pixel]))
+        scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)+1
+        sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
         # print('Order size\nScience: {science} pixels\nSky: {sky}'.format(science=sct-scb, sky=skt-skb))
         # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
-        extracted.append(np.average(data[skb:skt, pixel]))
+        extracted.append(np.average(data[scb:sct, pixel]))
 
     return extracted
 
