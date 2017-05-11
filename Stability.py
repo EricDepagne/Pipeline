@@ -85,7 +85,7 @@ def fit_orders_pair(arcdata):
             g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
             g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
             gg_init = g1 + g2
-# In the compound results, parameters with _o are relative to the science fibre, and those with _1 are the sky fibre.
+# In the compound results, parameters with _0 are relative to the science fibre, and those with _1 are the sky fibre.
             fitter = fitting.SLSQPLSQFitter()
         # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
@@ -172,7 +172,7 @@ def set_parameters(arcfile):
             'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
             'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
             'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
-            'nbpixperstep': 1
+            'nbpixperstep': 11
                 }
     return parameters
 
@@ -194,38 +194,41 @@ def prepare_data(data):
 
 
 def plot_orders(orderframe, orderpositions):
-    plt.clf()
-    plt.imshow(orderframe)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
     for o in orderpositions.keys():
         y1c = []
         y1b = []
         y1t = []
+        y2c = []
         y2b = []
         y2t = []
-        y2c = []
         x = []
         if 'X' in o:
             continue
         for i in range(len(orderpositions[o]['fit'])):
             x.append(orderpositions['X'][i])
             y1c.append(orderpositions[o]['fit'][i].mean_0.value)
-            y1t.append(orderpositions[o]['fit'][i].mean_0.value - 2*orderpositions[o]['fit'][i].stddev_0)
-            y1b.append(orderpositions[o]['fit'][i].mean_0.value + 2*orderpositions[o]['fit'][i].stddev_0)
+            y1t.append(orderpositions[o]['fit'][i].mean_0.value - 2.5*orderpositions[o]['fit'][i].stddev_0)
+            y1b.append(orderpositions[o]['fit'][i].mean_0.value + 2.5*orderpositions[o]['fit'][i].stddev_0)
             y2c.append(orderpositions[o]['fit'][i].mean_1.value)
+            y2t.append(orderpositions[o]['fit'][i].mean_1.value - 2.5*orderpositions[o]['fit'][i].stddev_1)
+            y2b.append(orderpositions[o]['fit'][i].mean_1.value + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        ax.annotate(o, xy=(200, y1c[0]), color='white')
         # print(x, y1)
-        plt.plot(x, y1c, 'blue', x, y2c, 'red', x, y1b, 'blue', x, y1t, 'blue')
+        # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
+        ax.plot(x, y1b, 'blue',  x, y1t, 'blue', x, y1c, 'green', linewidth=0.5)
+        ax.plot(x, y2b, 'red',  x, y2t, 'red', x, y2c, 'green', linewidth=0.5)
+    print(len(y1c))
+    ax.imshow(orderframe)
+    return y1c, x
 
 
-def extract_order(data, orderpositions, polyorder=7):
-    print('Extracting orders\n')
-    from scipy.integrate import romberg
-# romberg(function, a, b) gives the area under the curve.
-# gf1 = models.Gaussian1D(amplitude=func.amplitude_0, mean=func.mean_0, stddev=func.stddev_0)
-    # plt.clf()
-# first we fit each orders
-    t = {}
+def extract_order(data, orderpositions, order, polyorder=7):
+    print('Extracting order {order}'.format(order=order))
     # We try firts on one particular order.
-    o = '26'
+    o = str(order)
     func = orderpositions[o]['fit']
     X = orderpositions['X']
     orderpolynom = {}
@@ -240,10 +243,9 @@ def extract_order(data, orderpositions, polyorder=7):
                 'ysky': np.poly1d(np.polyfit(X, ysky, polyorder))
                 }
                 )
-    print(orderpolynom)
-    t = []
+    # print(orderpolynom)
     extracted = []
-    for pixel in np.arange(parameters['X1'], min(data.shape[1],parameters['X2'])):
+    for pixel in np.arange(parameters['X1'], min(data.shape[1], parameters['X2'])):
         if pixel < X[0]:
             continue
         try:
@@ -251,56 +253,22 @@ def extract_order(data, orderpositions, polyorder=7):
             keepi = i
         except ValueError:
             i = keepi
-#         ycenterscience = orderpolynom['yscience'](pixel)
-#         ycentersky = orderpolynom['ysky'](pixel)
-        y1c = orderpositions[o]['fit'][i].mean_0.value
-        # y1b = np.int(orderpositions[o]['fit'][i].mean_0.value - 2*orderpositions[o]['fit'][i].stddev_0)+1
-        y1b = np.int(orderpolynom['yscience'](pixel) - 2*orderpositions[o]['fit'][i].stddev_0)+1
-        y1t = np.int(orderpolynom['yscience'](pixel) + 2*orderpositions[o]['fit'][i].stddev_0)
-        print(y1b, y1t, pixel, data[y1b:y1t,pixel].sum())
-        extracted.append(data[y1b:y1t,pixel].sum())
+        scb = np.int(orderpolynom['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
+        sct = np.int(orderpolynom['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+        extracted.append(np.average(data[scb:sct, pixel]))
+        skb = np.int(orderpolynom['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)+1
+        skt = np.int(orderpolynom['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        # print('Order size\nScience: {science} pixels\nSky: {sky}'.format(science=sct-scb, sky=skt-skb))
+        # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
+        extracted.append(np.average(data[skb:skt, pixel]))
 
     return extracted
 
-
-
-
-#     for pixel in np.arange(parameters['X1'], parameters['X2']):  # , parameters['nbpixperstep']): on peut sans doute y aller 11 par 11
-# #        print('pixel : {pixel}'.format(pixel=pixel))
-#         if pixel < X[0]:
-# # We start  exrtracting at the first measured point.
-#             continue
-#         print('extracting outside stepped pixels {pixel}'.format(pixel=pixel))
-#         # print('Interpolating the gaussian fits between the current measured pixel {current} and the next one {following}'.format(current=pixel, following=X[i+1]))
-#         try:
-#             i = X.index(pixel)
-#             keepi = i
-#         except ValueError:
-#             i = keepi
-# 
-#         print('index : {i}'.format(i=i))
-#         ycenterscience = orderpolynom['yscience'](pixel)
-#         ycentersky = orderpolynom['ysky'](pixel)
-#         ystart = ycentersky - 30
-#         ystop = ycenterscience + 30
-#         print(ystart, ystop, ycentersky)
-#         ofit_0 = models.Gaussian1D(amplitude=func[i].amplitude_0, mean=ycenterscience, stddev=func[i].stddev_0)
-#         ofit_1 = models.Gaussian1D(amplitude=func[i].amplitude_1, mean=ycentersky, stddev=func[i].stddev_1)
-#         extracted.append(romberg(ofit_0, ystart, ystop))
-#         extracted.append(romberg(ofit_1, ystart, ystop))
-#         t.append(pixel)
-#     print(len(extracted))
-#     print(len(t))
-# 
-#     #plt.plot(t, extracted[::2], 'orange', t, extracted[1::2], 'purple')
-#     return extracted
-#     # plt.plot(X, band[::2], 'orange', X, band[1::2], 'purple')
-#     # return orderpositions
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
     parameters = set_parameters(arcfiles['Flat'][3])
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    data = prepare_data(arcfiles['Flat'][3])
+    # data = prepare_data(arcfiles['Flat'][3])
     # order = fit_orders_pair(data)
