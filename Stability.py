@@ -69,8 +69,7 @@ def fit_orders_pair(arcdata):
 # yyg contains the pixels at the center of the chip where the orders are.
 # This is the origin of the gaussian fits.
     # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
-    # for i in range(1, len(goodpeaks)-1):
-    for i in range(10,15):
+    for i in range(1, len(goodpeaks)-1):
         center = parameters['center']
         nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
 # Computing how many steps are needed to parse the orders.
@@ -211,12 +210,11 @@ def plot_orders(orderframe, orderpositions):
     ax = fig.add_subplot(111)
 
     for o in orderpositions.keys():
-        yskyc = []
-        yskyb = []
-        yskyt = []
-        ysciencec = []
-        yscienceb = []
-        ysciencet = []
+        print('Plotting order {o}'.format(o=o))
+        if 'X' in o:
+            continue
+        ysky = []
+        yscience = []
         x = []
         if 'X' in o:
             continue
@@ -226,46 +224,37 @@ def plot_orders(orderframe, orderpositions):
             # x.append(orderpositions['X'][i])
             if pixel < orderpositions['X'][0]:
                 continue
-            try: 
+            try:
                 i = orderpositions['X'].index(pixel)
                 keepi = i
             except ValueError:
                 i = keepi
+            if i > len(orderpositions[o]['fit'])-1:
+                continue
             x.append(pixel)
-            yskyc.append(orderpositions[o]['fit'][i].mean_0.value)
-            yskyt.append(orderpositions[o]['fit'][i].mean_0.value - 2.5*orderpositions[o]['fit'][i].stddev_0)
-            yskyb.append(orderpositions[o]['fit'][i].mean_0.value + 2.5*orderpositions[o]['fit'][i].stddev_0)
-            ysciencec.append(orderpositions[o]['fit'][i].mean_1.value)
-            ysciencet.append(orderpositions[o]['fit'][i].mean_1.value - 2.5*orderpositions[o]['fit'][i].stddev_1)
-            yscienceb.append(orderpositions[o]['fit'][i].mean_1.value + 2.5*orderpositions[o]['fit'][i].stddev_1)
-        ax.annotate(o, xy=(200, yskyc[0]), color='white')
+            # We append the center of the order, the lower and the upper limits to ysky and yscience.
+
+            ysky.append(orderpositions[o]['yscience'](pixel))
+            ysky.append(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)
+            ysky.append(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+            yscience.append(orderpositions[o]['ysky'](pixel))
+            yscience.append(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)
+            yscience.append(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        ax.annotate(o, xy=(200, ysky[0]), color='white')
         # print(x, y1)
         # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
-        ax.plot(x, yskyb, 'blue',  x, yskyt, 'blue', x, yskyc, 'green', linewidth=0.5)
-        ax.plot(x, yscienceb, 'red',  x, ysciencet, 'red', x, ysciencec, 'green', linewidth=0.5)
+        ax.plot(x, ysky[::3], 'green',  x, ysky[1::3], 'blue', x, ysky[2::3], 'blue')
+        ax.plot(x, yscience[::3], 'green',  x, yscience[1::3], 'red', x, yscience[2::3], 'red')
     ax.imshow(orderframe, vmin=vmin, vmax=vmax)
     # return y1c, x
 
 
 def extract_order(data, orderpositions, order, polyorder=7):
     print('Extracting order {order}'.format(order=order))
-    # We try firts on one particular order.
+    # We try first on one particular order.
     o = str(order)
     func = orderpositions[o]['fit']
     X = orderpositions['X']
-#     orderpolynom = {}
-#     ysky = []
-#     yscience = []
-#     for i in range(len(func)):
-#         # We fit the shape of the order
-#         ysky.append(func[i].mean_0.value)
-#         yscience.append(func[i].mean_1.value)
-#     orderpolynom.update({
-#                 'yscience': np.poly1d(np.polyfit(X, yscience, polyorder)),
-#                 'ysky': np.poly1d(np.polyfit(X, ysky, polyorder))
-#                 }
-#                 )
-#     print(orderpolynom)
     extracted = []
     for pixel in np.arange(parameters['X1'], min(data.shape[1], parameters['X2'])):
         if pixel < X[0]:
