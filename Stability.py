@@ -62,13 +62,18 @@ def fit_orders_pair(arcdata):
     # print('peaks : {goodpeaks}'.format(goodpeaks=goodpeaks))
     # plt.plot(cutfiltered)
     # plt.scatter(peaks[goodpeaks], cutfiltered[peaks[goodpeaks]], c='green')
-    goodpeaks = find_peaks(cut)
-    print(goodpeaks)
+    goodpeaks = find_peaks(cut)[::-1]
+    lmax = 0
+    # goodpeaks = find_peaks(cut)
+# We invert the lists to start from the top of the frame.
+    # goodpeaks = gps[::-1]
+    print('Orders found at the following pixels {goodpeaks} using the center column of the chip'.format(goodpeaks=goodpeaks))
 # Cette boucle est probablement vectorisable. ON doit pouvoir parser tous les ordres en même temps, car ils sont tous indépendants.
 #
 # yyg contains the pixels at the center of the chip where the orders are.
 # This is the origin of the gaussian fits.
     # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
+    # for i in range(1,4):
     for i in range(1, len(goodpeaks)-1):
         center = parameters['center']
         nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
@@ -78,7 +83,8 @@ def fit_orders_pair(arcdata):
         scienceorder = []
         positions = []
         fit = []
-        print('Detecting order number {order}.'.format(order=i,))
+        ordernumber = i + parameters[parameters['chip']]['OrderShift']
+        print('Detecting order number {order}.'.format(order=ordernumber))
         for direction in [-1, 1]:
             yg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
             # plt.plot(yg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
@@ -100,7 +106,7 @@ def fit_orders_pair(arcdata):
                 except IndexError as e:
                     print('Out of bounds')
                     break
-                # print('y : {y}, step {step}, direction {direction}'.format(y=y, step=steps, direction=direction))
+                # print('y : {y}, step {step}, direction {direction}'.format(y=y, step=index, direction=direction))
                 # print(sci.value, sky.value)
                 if sci.value+20 > parameters['Y2']-1:
                     # print('Overflow at {sci} for order {order}'.format(sci=sci.value, order=i))
@@ -109,7 +115,7 @@ def fit_orders_pair(arcdata):
                 xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
                 # print('xmobile : {xmobile}'.format(xmobile=xmobile.shape))
                 if xmobile.shape[0] == 0:
-                    print('Not enough points to find the orders. Skipping')
+                    print('Not enough points to find the order. Skipping')
                     continue
                 ymobile = arcdata[xmobile, y]
                 g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
@@ -129,6 +135,10 @@ def fit_orders_pair(arcdata):
             if direction == -1:
                 fit = fit[::-1]
                 positions = positions[::-1]
+            if len(positions) > lmax:
+                lmax = len(positions)
+                p = positions
+            # print('nb de points : {positions}'.format(positions=len(positions)))
             ysky = []
             yscience = []
             pfit = {}
@@ -145,12 +155,11 @@ def fit_orders_pair(arcdata):
                     )
         order.update(
                 {
-                    str(i): pfit
+                    str(ordernumber): pfit
                     }
                 )
-        order.update({'X': positions})
+        order.update({'X': p})
 
-    print(len(order['10']['fit']))
     return order
 
 
@@ -165,14 +174,14 @@ def set_parameters(arcfile):
     ff = fits.open(arcfile)
     parameters = {
             'HBDET': {
-                'Level': 50,
+                'Level': 15,
                 'Distance': 30,
-                'NOrder': 27
+                'OrderShift': 85
                     },
             'HRDET': {
-                'Level': 50,
+                'Level': 15,
                 'Distance': 40,
-                'NOrder': 33
+                'OrderShift': 53
                     },
             'X': ff[0].header['NAXIS1'],
             'Y': ff[0].header['NAXIS2'],
@@ -189,13 +198,15 @@ def set_parameters(arcfile):
 
 
 def prepare_data(data):
+    obs = fits.open(data)
     if parameters['chip'] == 'HRDET':
         bias = fits.open('R201704150021.fits')
+        d = obs[0].data
     else:
         bias = fits.open('H201704150021.fits')
-    flat = fits.open(data)
+        d = obs[0].data[::-1, :]
 
-    dt = flat[0].data[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
+    dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
     hist, bins = np.histogram(dt, bins=50)
     dt[np.where(dt >= bins[-2])] = bins[2]
@@ -221,7 +232,6 @@ def plot_orders(orderframe, orderpositions):
         # for i in range(len(orderpositions[o]['fit'])):
         for pixel in range(orderframe.shape[1]):
 
-            # x.append(orderpositions['X'][i])
             if pixel < orderpositions['X'][0]:
                 continue
             try:
@@ -235,12 +245,14 @@ def plot_orders(orderframe, orderpositions):
             # We append the center of the order, the lower and the upper limits to ysky and yscience.
 
             ysky.append(orderpositions[o]['yscience'](pixel))
-            ysky.append(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)
-            ysky.append(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+            ysky.append(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)
+            ysky.append(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
             yscience.append(orderpositions[o]['ysky'](pixel))
-            yscience.append(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)
-            yscience.append(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
-        ax.annotate(o, xy=(200, ysky[0]), color='white')
+            yscience.append(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)
+            yscience.append(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+        ax.annotate(o, xy=(x[0], ysky[0]), color='white')
+        ax.annotate(o, xy=(x[parameters['center']], ysky[parameters['center']]), color='white')
+        ax.annotate(o, xy=(x[-1], ysky[-1]), color='white')
         # print(x, y1)
         # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
         ax.plot(x, ysky[::3], 'green',  x, ysky[1::3], 'blue', x, ysky[2::3], 'blue')
@@ -249,13 +261,15 @@ def plot_orders(orderframe, orderpositions):
     # return y1c, x
 
 
-def extract_order(data, orderpositions, order, polyorder=7):
+def extract_order(data, orderpositions, order):
     print('Extracting order {order}'.format(order=order))
+    import pandas as pd
+    from astropy.convolution import Gaussian2DKernel, convolve
     # We try first on one particular order.
     o = str(order)
-    func = orderpositions[o]['fit']
     X = orderpositions['X']
     extracted = []
+    orderex = []
     for pixel in np.arange(parameters['X1'], min(data.shape[1], parameters['X2'])):
         if pixel < X[0]:
             continue
@@ -264,22 +278,27 @@ def extract_order(data, orderpositions, order, polyorder=7):
             keepi = i
         except ValueError:
             i = keepi
-        skb = np.int(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
-        skt = np.int(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
-        extracted.append(np.average(data[skb:skt, pixel]))
-        scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)+1
-        sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
-        # print('Order size\nScience: {science} pixels\nSky: {sky}'.format(science=sct-scb, sky=skt-skb))
+        skb = np.int(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)+1
+        skt = np.int(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        extracted.append(data[skb:skt, pixel].sum())
+        scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
+        sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+        # print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
         # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
-        extracted.append(np.average(data[scb:sct, pixel]))
+        orderex.append(data[scb:sct, pixel])
+        extracted.append(data[scb:sct, pixel].sum())
+    df = pd.DataFrame(orderex)
+    gaussk = Gaussian2DKernel(stddev=4)
+    oc = convolve(df.T.values, gaussk)
+    orderconvolved = oc.sum(axis=0)
 
-    return extracted
+    return extracted, orderconvolved
 
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    parameters = set_parameters(arcfiles['Flat'][3])
+    parameters = set_parameters(arcfiles['Flat'][-1])
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    # data = prepare_data(arcfiles['Flat'][3])
-    # order = fit_orders_pair(data)
+    data = prepare_data(arcfiles['Flat'][-1])
+    order = fit_orders_pair(data)
