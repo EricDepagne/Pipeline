@@ -294,6 +294,9 @@ def extract_order(data, orderpositions, order):
 
     return extracted, orderconvolved
 
+def wavelength():
+    pass
+
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
