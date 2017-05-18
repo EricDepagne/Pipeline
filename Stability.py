@@ -176,12 +176,14 @@ def set_parameters(arcfile):
             'HBDET': {
                 'Level': 15,
                 'Distance': 30,
-                'OrderShift': 85
+                'OrderShift': 85,
+                'XPix': 2048,
                     },
             'HRDET': {
                 'Level': 15,
                 'Distance': 40,
-                'OrderShift': 53
+                'OrderShift': 53,
+                'XPix': 4096
                     },
             'X': ff[0].header['NAXIS1'],
             'Y': ff[0].header['NAXIS2'],
@@ -294,14 +296,74 @@ def extract_order(data, orderpositions, order):
 
     return extracted, orderconvolved
 
-def wavelength():
-    pass
+
+def wavelength(orders):
+    # We load the spectral format of the chips"
+    # fmt = np.loadtxt('HRS_Spectral_Format.dat', delimiter=',', dtype={'names':('order', 'centralwl', 'wlrange'),
+    #                                                                 'formats' :('S3', 'f4', 'f4')})
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    wl = {}
+    with open('HRS_Spectral_Format.dat') as f:
+        for l in f:
+            (o, lc, ra) = l.split(',')
+            wl[str(o)] = {'λcen': lc, 'range': ra.strip('\n'), 'step': np.float(ra.strip())/parameters[parameters['chip']]['XPix']}
+    npix = parameters['X2'] - parameters['center']
+    x = np.arange(4095)
+    l = []
+    o = []
+    lcen = []
+    step = []
+    lrange = []
+    for k in wl.keys():
+        # print(k, wl[k]['λcen'])
+        o.append(np.float(k))
+        lcen.append(np.float(wl[k]['λcen']))
+        step.append(np.float(wl[k]['step']))
+        lrange.append(np.float(wl[k]['range']))
+    os = o.copy()
+    # plt.scatter(o, lcen)
+    wl0 = np.poly1d(np.polyfit(o, lcen, 5))
+    wl1 = np.poly1d(np.polyfit(o, step, 5))
+    wl2 = np.poly1d(np.polyfit(o, lrange, 5))
+    os.sort()
+    # plt.plot(os, wl0(os))
+    # Now the missing orders
+    xo = []
+    for xt in range(int(min(os)), int(max(os))):
+        if not xt % 2:
+            xo.append(xt)
+    #print(xo, wl0(xo), wl1(xo), wl2(xo))
+    # plt.scatter(xo, wl1(xo))
+    t = {}
+    for index, order in enumerate(xo):
+        t.update({str(order): {'range': wl2(xo)[index], 'step': wl1(xo)[index], 'λcen': wl0(xo)[index]}})
+    wl.update(t)
+    for order in wl.keys():
+        if order in orders.keys():
+            lc = np.float(wl[order]['λcen'])
+            st = wl[order]['step']
+            xlm = [lc - i*st for i in range(npix)]
+            xlp = [lc + i*st for i in range(npix)]
+            xlm.sort()
+            xlp.sort()
+            xl = xlm + xlp
+            print(len(xl))
+            ylsc = orders[order]['yscience']
+            ylsk = orders[order]['ysky']
+            ax.plot(xl[parameters['X1']:parameters['X2']], ylsc(x), 'green', xl[parameters['X1']:parameters['X2']], ylsk(x), 'orange')
+            print(lc, type(lc), ylsk(lc), order)
+            ax.annotate(order, xy=(lc,  ylsk(lc)))
+        else:
+            continue
+    return wl
 
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    parameters = set_parameters(arcfiles['Flat'][-1])
+    parameters = set_parameters(arcfiles['Flat'][3])
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    data = prepare_data(arcfiles['Flat'][-1])
-    order = fit_orders_pair(data)
+    #data = prepare_data(arcfiles['Flat'][3])
+    #order = fit_orders_pair(data)
+    wavelength(order)
