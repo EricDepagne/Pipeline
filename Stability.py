@@ -294,7 +294,7 @@ def extract_order(data, orderpositions, order):
     oc = convolve(df.T.values, gaussk)
     orderconvolved = oc.sum(axis=0)
 
-    return extracted, orderconvolved
+    return np.array(extracted), np.array(orderconvolved)
 
 
 def wavelength(orders):
@@ -361,9 +361,11 @@ def wavelength(orders):
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    parameters = set_parameters(arcfiles['Flat'][3])
+    #f = 'R201510210012.fits'
+    f = arcfiles['Flat'][3]
+    parameters = set_parameters(f)
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    #data = prepare_data(arcfiles['Flat'][3])
+    #data = prepare_data(f)
     #order = fit_orders_pair(data)
-    wavelength(order)
+    #wavelength(order)
