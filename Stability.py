@@ -190,6 +190,7 @@ def set_parameters(arcfile):
             'center': int(ff[0].header['NAXIS1']/2),
             'chip': ff[0].header['DETNAM'],
             'data': ff[0].data,
+            'mode': ff[0].header['OBSMODE'],
             'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
             'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
             'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
@@ -263,7 +264,7 @@ def plot_orders(orderframe, orderpositions):
     # return y1c, x
 
 
-def extract_order(data, orderpositions, order):
+def extract_order(data, orderpositions, order=None):
     print('Extracting order {order}'.format(order=order))
     import pandas as pd
     from astropy.convolution import Gaussian2DKernel, convolve
@@ -333,7 +334,7 @@ def wavelength(orders):
     for xt in range(int(min(os)), int(max(os))):
         if not xt % 2:
             xo.append(xt)
-    #print(xo, wl0(xo), wl1(xo), wl2(xo))
+    # print(xo, wl0(xo), wl1(xo), wl2(xo))
     # plt.scatter(xo, wl1(xo))
     t = {}
     for index, order in enumerate(xo):
@@ -358,6 +359,25 @@ def wavelength(orders):
             continue
     return wl
 
+
+def getshape(orderinf, ordersup):
+    """
+    In order to derive the shape of a given order, we use one order after and one order before
+    We suppose that the variations are continuous.
+    Thus approximating order n using orders n+1 and n-1 is close enough from reality
+    """
+    # Problems when the boundary order has some intense line, like order 65 and Hα. 
+    from scipy.signal import butter, filtfilt
+    # Now we find the shape, it needs several steps and various fitting/smoothing
+    b, a = butter(10, 0.025)
+    shape = np.minimum(orderinf, ordersup)
+    ysh2 = filtfilt(b, a, shape)
+    x = np.arange(ysh2.shape[0])
+    ysh3 = np.poly1d(np.polyfit(x, ysh2, 11))(x)
+    ysh4 = np.minimum(ysh2, ysh3)
+    ysh5 = np.poly1d(np.polyfit(x, ysh4, 11))(x)
+    # ysh5 fits now the shape of the ThAr order quite well, and we can start from there to identify the lines.
+    return ysh5
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
