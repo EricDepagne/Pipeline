@@ -73,8 +73,8 @@ def fit_orders_pair(arcdata):
 # yyg contains the pixels at the center of the chip where the orders are.
 # This is the origin of the gaussian fits.
     # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
-    # for i in range(1,4):
-    for i in range(1, len(goodpeaks)-1):
+    for i in range(18, 28):
+    # for i in range(1, len(goodpeaks)-1):
         center = parameters['center']
         nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
 # Computing how many steps are needed to parse the orders.
@@ -97,6 +97,7 @@ def fit_orders_pair(arcdata):
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
             sci = gg_fit.mean_0
             sky = gg_fit.mean_1
+            fitsize = [] 
             for index in range(steps+1):
                 if direction == 1 and index == 0:
                     # We do not need to redo the point at the center.
@@ -117,6 +118,16 @@ def fit_orders_pair(arcdata):
                 if xmobile.shape[0] == 0:
                     print('Not enough points to find the order. Skipping')
                     continue
+
+                fitsize.append(xmobile.shape[0])
+                if xmobile.shape[0]>np.average(fitsize)+4*np.std(fitsize):
+#TODO le fit rate quand les ordres ne sont pas bien fittés à cause du faible signal.
+# Cela fout le bordel, trouver comment faire pour que ça marche!
+
+                    #print(xmobile.shape[0], np.average(fitsize), y)
+                    #print('ordre trop large, fit pourri')
+                    break
+
                 ymobile = arcdata[xmobile, y]
                 g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
                 g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
@@ -195,7 +206,8 @@ def set_parameters(arcfile):
             'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
             'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
             'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
-            'nbpixperstep': 11
+            'nbpixperstep': 11,
+            'ccdtype': ff[0].header['CCDTYPE']
                 }
     return parameters
 
@@ -212,12 +224,17 @@ def prepare_data(data):
     dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
     hist, bins = np.histogram(dt, bins=50)
-    dt[np.where(dt >= bins[-2])] = bins[2]
+    if 'Flat' in parameters['ccdtype']:
+        print('Flatfield : removing cosmics')
+        dt[np.where(dt >= bins[-2])] = bins[2]
+    else:
+        print('Not a flat, not doing anything')
+    return d
 
-    return dt
 
-
-def plot_orders(orderframe, orderpositions):
+def plot_orders(data):
+    orderframe = data['data']
+    orderpositions = data['order']
     from astropy.visualization import ZScaleInterval
     (vmin, vmax) = ZScaleInterval().get_limits(orderframe)
     fig = plt.figure()
@@ -253,15 +270,20 @@ def plot_orders(orderframe, orderpositions):
             yscience.append(orderpositions[o]['ysky'](pixel))
             yscience.append(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)
             yscience.append(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
-        ax.annotate(o, xy=(x[0], ysky[0]), color='white')
-        ax.annotate(o, xy=(x[parameters['center']], ysky[parameters['center']]), color='white')
-        ax.annotate(o, xy=(x[-1], ysky[-1]), color='white')
+        xlabelleft = 0.25*(x[-1]+x[0])
+        xlabelcentre = 0.5*(x[-1]+x[0])
+        xlabelright = 0.75*(x[-1]+x[0])
+        ylabelleft = orderpositions[o]['yscience'](xlabelleft)
+        ylabelcentre = orderpositions[o]['yscience'](xlabelcentre)
+        ylabelright = orderpositions[o]['yscience'](xlabelright)
+        ax.annotate(o, xy=(xlabelleft, ylabelleft), color='peachpuff')
+        ax.annotate(o, xy=(xlabelcentre, ylabelcentre), color='turquoise')
+        ax.annotate(o, xy=(xlabelright, ylabelright), color='orange')
         # print(x, y1)
         # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
         ax.plot(x, ysky[::3], 'green',  x, ysky[1::3], 'blue', x, ysky[2::3], 'blue')
         ax.plot(x, yscience[::3], 'green',  x, yscience[1::3], 'red', x, yscience[2::3], 'red')
     ax.imshow(orderframe, vmin=vmin, vmax=vmax)
-    # return y1c, x
 
 
 def extract_order(data, orderpositions, order=None):
@@ -286,7 +308,8 @@ def extract_order(data, orderpositions, order=None):
         extracted.append(data[skb:skt, pixel].sum())
         scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
         sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
-        # print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
+        #print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
+        # print(pixel, scb, sct)
         # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
         orderex.append(data[scb:sct, pixel])
         extracted.append(data[scb:sct, pixel].sum())
@@ -366,10 +389,13 @@ def getshape(orderinf, ordersup):
     We suppose that the variations are continuous.
     Thus approximating order n using orders n+1 and n-1 is close enough from reality
     """
-    # Problems when the boundary order has some intense line, like order 65 and Hα. 
+    # Problems when the boundary order has some intense line, like order 65 and Hα.
     from scipy.signal import butter, filtfilt
     # Now we find the shape, it needs several steps and various fitting/smoothing
     b, a = butter(10, 0.025)
+    # the shape of the orders does not vary much between orders, but there can be cosmic rays or emission lines
+    # Since it's unlikely that the same pixel is affected on two non contiguous orders, we pick the minimum of the
+    # two orders, and we create an artificial order between them and it's the one that we'll fit.
     shape = np.minimum(orderinf, ordersup)
     ysh2 = filtfilt(b, a, shape)
     x = np.arange(ysh2.shape[0])
@@ -381,11 +407,14 @@ def getshape(orderinf, ordersup):
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
-    #f = 'R201510210012.fits'
-    f = arcfiles['Flat'][3]
+    # f = 'R201510210012.fits'
+    f = arcfiles['Flat'][-1]
     parameters = set_parameters(f)
+    if 'HBD'in parameters['chip']:
+        print('Blue detector')
+        parameters['data'] = parameters['data'][::-1, :]
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    #data = prepare_data(f)
-    #order = fit_orders_pair(data)
+    parameters['data'] = prepare_data(f)
+    parameters['order'] = fit_orders_pair(parameters['data'])
     #wavelength(order)
