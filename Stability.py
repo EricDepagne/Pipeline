@@ -52,11 +52,66 @@ def find_peaks(arc):
             continue
         # print(i, peaks[i], cutfiltered[peaks[i]])
         goodpeaks.append(i)
-    return peaks[goodpeaks]
+    return peaks[goodpeaks], peaks
 
+def find_peaks2():
+# Instead of fitting a gaussian, we will parse the chip column by column and see if the find_peaks_cwt can do it better, since it seems to be detecting the orders much better on the edges of the chip.
+    peaks = []
+    gpeaks = []
+    for pixel in np.arange(50, parameters['X2'], 50):
+        cutfiltered = savgol_filter(parameters['data'][:,pixel], 11, 3)
+        p = find_peaks_cwt(cutfiltered, widths=np.arange(1,20))
+
+        peaks.append(p)
+
+    # Sometimes, peaks are found between orders, we need to remove them.
+    # that's easy : the intensity of the pixel between orders is equal to the bias value : 920 for red, 690 for blue. 
+    p4 = np.array(peaks)
+    for index in range(len(peaks)):
+        #print(parameters['data'][:, 50*index][p4[index]], index)
+        m = np.isclose(parameters['data'][:,50*index][p4[index]], np.zeros_like(parameters['data'][:,50*index][p4[index]]), rtol=20,atol=20)
+        gm = np.invert(m)
+        gpeaks.append(p4[index][gm])
+
+    return peaks, gpeaks
+
+def identify_orders(pts):
+    from astropy.visualization import ZScaleInterval
+    (vmin, vmax) = ZScaleInterval().get_limits(parameters['data'])
+
+    index = 1
+    retenue = 1000
+    go = []
+    pos = {}
+    for index in range(1, 4):
+        for i in range(len(pts)):
+            pts[i] = pts[i].astype(float)
+        retenue = 10000
+        for i in range(1,len(pts)):
+            save = pts[0][index]
+#print('départ: {depart}'.format(depart=save))
+            print(pts[i][index], i*50)
+            if pts[i][index]>retenue:
+                print(retenue, pts[i][index], i, index)
+                print("on quitte l'ordre pour atteindre l'autre")
+                print('limite : {l}'.format(l=50*i))
+                break
+            go.append(pts[i][index])
+            retenue = pts[i][index]
+            pts[i][index] = np.nan
+        print(go)
+        y = [50*(i+1) for i,c in enumerate(go)]
+        print(y)
+        plt.plot(y, go)
+        go = []
+        y = [] 
+        pos.update({str(i):go})
+    plt.imshow(parameters['data'], vmin=vmin, vmax=vmax)
+    plt.show()
+
+    return pos
 
 def fit_orders_pair(arcdata):
-    # plt.clf()
     cut = arcdata[:, parameters['center']]
     order = {}
     # print('peaks : {goodpeaks}'.format(goodpeaks=goodpeaks))
@@ -73,8 +128,8 @@ def fit_orders_pair(arcdata):
 # yyg contains the pixels at the center of the chip where the orders are.
 # This is the origin of the gaussian fits.
     # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
-    for i in range(18, 28):
-    # for i in range(1, len(goodpeaks)-1):
+    # for i in range(20, 28):
+    for i in range(1, len(goodpeaks)-1):
         center = parameters['center']
         nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
 # Computing how many steps are needed to parse the orders.
@@ -97,7 +152,6 @@ def fit_orders_pair(arcdata):
             gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
             sci = gg_fit.mean_0
             sky = gg_fit.mean_1
-            fitsize = [] 
             for index in range(steps+1):
                 if direction == 1 and index == 0:
                     # We do not need to redo the point at the center.
@@ -119,14 +173,8 @@ def fit_orders_pair(arcdata):
                     print('Not enough points to find the order. Skipping')
                     continue
 
-                fitsize.append(xmobile.shape[0])
-                if xmobile.shape[0]>np.average(fitsize)+4*np.std(fitsize):
-#TODO le fit rate quand les ordres ne sont pas bien fittés à cause du faible signal.
+# TODO le fit rate quand les ordres ne sont pas bien fittés à cause du faible signal.
 # Cela fout le bordel, trouver comment faire pour que ça marche!
-
-                    #print(xmobile.shape[0], np.average(fitsize), y)
-                    #print('ordre trop large, fit pourri')
-                    break
 
                 ymobile = arcdata[xmobile, y]
                 g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
@@ -157,11 +205,24 @@ def fit_orders_pair(arcdata):
             for f in range(len(fit)):
                 ysky.append(fit[f].mean_0.value)
                 yscience.append(fit[f].mean_1.value)
+            # very rough filtering of the data, in order to get a proper fitting.
+            yska = np.array(ysky)
+            ysca = np.array(yscience)
+            outsc = np.where(ysca > ysca.mean()+ 3*ysca.std())
+            outsk = np.where(yska > yska.mean()+ 3*yska.std())
+            print('outliers : sky {sky}, science {science}'.format(sky=outsk, science=outsc))
+
+            if outsk[0].shape[0]:
+                yska[np.where(yska > yska.mean()+ 3*yska.std())] = np.mean(yska[outsk[0][0]:5]) 
+            if outsc[0].shape[0]:
+                ysca[np.where(ysca > ysca.mean()+ 3*ysca.std())] = np.mean(ysca[outsc[0][0]:5])
             pfit.update(
                     {
                         'yscience': np.poly1d(np.polyfit(positions, yscience, polyorder)),
                         'ysky': np.poly1d(np.polyfit(positions, ysky, polyorder)),
-                        'fit': fit
+                        'fit': fit,
+                        'yscdata': yscience, 
+                        'yskdata': ysky
                     }
                     )
         order.update(
@@ -189,12 +250,14 @@ def set_parameters(arcfile):
                 'Distance': 30,
                 'OrderShift': 85,
                 'XPix': 2048,
+                'BiasLevel' : 690
                     },
             'HRDET': {
                 'Level': 15,
                 'Distance': 40,
                 'OrderShift': 53,
-                'XPix': 4096
+                'XPix': 4096,
+                'BiasLevel': 920
                     },
             'X': ff[0].header['NAXIS1'],
             'Y': ff[0].header['NAXIS2'],
@@ -216,10 +279,10 @@ def prepare_data(data):
     obs = fits.open(data)
     if parameters['chip'] == 'HRDET':
         bias = fits.open('R201704150021.fits')
-        d = obs[0].data
+        d = obs[0].data# - bias[0].data
     else:
         bias = fits.open('H201704150021.fits')
-        d = obs[0].data[::-1, :]
+        d = obs[0].data[::-1, :]# - bias[0].data
 
     dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
@@ -416,5 +479,5 @@ if __name__ == "__main__":
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
     parameters['data'] = prepare_data(f)
-    parameters['order'] = fit_orders_pair(parameters['data'])
+    # parameters['order'] = fit_orders_pair(parameters['data'])
     #wavelength(order)
