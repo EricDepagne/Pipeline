@@ -54,62 +54,71 @@ def find_peaks(arc):
         goodpeaks.append(i)
     return peaks[goodpeaks], peaks
 
+
 def find_peaks2():
-# Instead of fitting a gaussian, we will parse the chip column by column and see if the find_peaks_cwt can do it better, since it seems to be detecting the orders much better on the edges of the chip.
+    # Instead of fitting a gaussian, we will parse the chip column by column and see if the find_peaks_cwt can do it better, since it seems to be detecting the orders much better on the edges of the chip.
     peaks = []
     gpeaks = []
     for pixel in np.arange(50, parameters['X2'], 50):
-        cutfiltered = savgol_filter(parameters['data'][:,pixel], 11, 3)
-        p = find_peaks_cwt(cutfiltered, widths=np.arange(1,20))
+        cutfiltered = savgol_filter(parameters['data'][:, pixel], 11, 3)
+        p = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
+        print(type(p))
+        print(pixel)
 
         peaks.append(p)
 
     # Sometimes, peaks are found between orders, we need to remove them.
-    # that's easy : the intensity of the pixel between orders is equal to the bias value : 920 for red, 690 for blue. 
+    # that's easy : the intensity of the pixel between orders is equal to the bias value : 920 for red, 690 for blue.
     p4 = np.array(peaks)
     for index in range(len(peaks)):
-        #print(parameters['data'][:, 50*index][p4[index]], index)
-        m = np.isclose(parameters['data'][:,50*index][p4[index]], np.zeros_like(parameters['data'][:,50*index][p4[index]]), rtol=20,atol=20)
+        # print(parameters['data'][:, 50*index][p4[index]], index)
+        m = np.isclose(parameters['data'][:, 50*index][p4[index]], np.zeros_like(parameters['data'][:, 50*index][p4[index]]), rtol=20, atol=20)
         gm = np.invert(m)
         gpeaks.append(p4[index][gm])
 
     return peaks, gpeaks
+
 
 def identify_orders(pts):
     from astropy.visualization import ZScaleInterval
     (vmin, vmax) = ZScaleInterval().get_limits(parameters['data'])
 
     index = 1
-    retenue = 1000
     go = []
     pos = {}
-    for index in range(1, 4):
+    for index in range(1, 80):
         for i in range(len(pts)):
             pts[i] = pts[i].astype(float)
-        retenue = 10000
-        for i in range(1,len(pts)):
-            save = pts[0][index]
-#print('départ: {depart}'.format(depart=save))
-            print(pts[i][index], i*50)
-            if pts[i][index]>retenue:
-                print(retenue, pts[i][index], i, index)
-                print("on quitte l'ordre pour atteindre l'autre")
-                print('limite : {l}'.format(l=50*i))
-                break
-            go.append(pts[i][index])
-            retenue = pts[i][index]
-            pts[i][index] = np.nan
-        print(go)
-        y = [50*(i+1) for i,c in enumerate(go)]
-        print(y)
-        plt.plot(y, go)
+        for i in range(1, len(pts)):
+            # print('i vaut :{i}'.format(i=i))
+            if i == 1:
+                orig = pts[i][index]
+                continue
+            # print(pts[i][index], orig)
+            if pts[i][index] > orig:
+                go.append(i)
+
+            orig = pts[i][index]
+        # print('order {i}, pixels : {o}'.format(i=index,o=go))
         go = []
-        y = [] 
-        pos.update({str(i):go})
+    n = np.arange(1, 28)
+    nm1 = np.arange(28,34)
+    nm2 = np.arange(34, 41)
+    for i in range(1, 80):
+        ind = np.arange(i, i-3, -1)
+        ind[np.where(ind<=0)]=0
+        a = ind > 0
+        a = a*1
+        o = [a[0]*pts[i][ind[0]] for i in n] + [a[1]*pts[i][ind[1]] for i in nm1] + [a[2]*pts[i][ind[2]] for i in nm2]
+        pos.update({str(i):o})
+
+    #print(pos)
+
     plt.imshow(parameters['data'], vmin=vmin, vmax=vmax)
     plt.show()
 
-    return pos
+    return(pos)
+
 
 def fit_orders_pair(arcdata):
     cut = arcdata[:, parameters['center']]
@@ -208,20 +217,20 @@ def fit_orders_pair(arcdata):
             # very rough filtering of the data, in order to get a proper fitting.
             yska = np.array(ysky)
             ysca = np.array(yscience)
-            outsc = np.where(ysca > ysca.mean()+ 3*ysca.std())
-            outsk = np.where(yska > yska.mean()+ 3*yska.std())
+            outsc = np.where(ysca > ysca.mean() + 3*ysca.std())
+            outsk = np.where(yska > yska.mean() + 3*yska.std())
             print('outliers : sky {sky}, science {science}'.format(sky=outsk, science=outsc))
 
             if outsk[0].shape[0]:
-                yska[np.where(yska > yska.mean()+ 3*yska.std())] = np.mean(yska[outsk[0][0]:5]) 
+                yska[np.where(yska > yska.mean() + 3*yska.std())] = np.mean(yska[outsk[0][0]:5])
             if outsc[0].shape[0]:
-                ysca[np.where(ysca > ysca.mean()+ 3*ysca.std())] = np.mean(ysca[outsc[0][0]:5])
+                ysca[np.where(ysca > ysca.mean() + 3*ysca.std())] = np.mean(ysca[outsc[0][0]:5])
             pfit.update(
                     {
                         'yscience': np.poly1d(np.polyfit(positions, yscience, polyorder)),
                         'ysky': np.poly1d(np.polyfit(positions, ysky, polyorder)),
                         'fit': fit,
-                        'yscdata': yscience, 
+                        'yscdata': yscience,
                         'yskdata': ysky
                     }
                     )
@@ -250,7 +259,7 @@ def set_parameters(arcfile):
                 'Distance': 30,
                 'OrderShift': 85,
                 'XPix': 2048,
-                'BiasLevel' : 690
+                'BiasLevel': 690
                     },
             'HRDET': {
                 'Level': 15,
