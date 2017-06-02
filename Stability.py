@@ -59,11 +59,12 @@ def find_peaks2():
     # Instead of fitting a gaussian, we will parse the chip column by column and see if the find_peaks_cwt can do it better, since it seems to be detecting the orders much better on the edges of the chip.
     peaks = []
     gpeaks = []
-    for pixel in np.arange(50, parameters['X2'], 50):
+    pixelstart = 50
+    pixelstop = parameters['X2']
+    step = 50
+    for pixel in np.arange(pixelstart, pixelstop, step):
         cutfiltered = savgol_filter(parameters['data'][:, pixel], 11, 3)
         p = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
-        print(type(p))
-        print(pixel)
 
         peaks.append(p)
 
@@ -75,8 +76,17 @@ def find_peaks2():
         m = np.isclose(parameters['data'][:, 50*index][p4[index]], np.zeros_like(parameters['data'][:, 50*index][p4[index]]), rtol=20, atol=20)
         gm = np.invert(m)
         gpeaks.append(p4[index][gm])
+    # Working with numpy arrays is easier, so now, we transform the list of arrays into a proper array
+    size = max([len(i) for i in gpeaks])
+    print(size)
+    temparray = np.empty((size, len(gpeaks)))
+    print(temparray.shape)
+    for index in range(len(gpeaks)):
+        print(index)
+        gpeaks[index].resize(size)
+        temparray[:,index] = gpeaks[index]
 
-    return peaks, gpeaks
+    return peaks, gpeaks, temparray
 
 
 def identify_orders(pts):
