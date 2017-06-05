@@ -82,7 +82,7 @@ def find_peaks2():
     temparray = np.empty((size, len(gpeaks)))
     for index in range(len(gpeaks)):
         gpeaks[index].resize(size)
-        temparray[:,index] = gpeaks[index]
+        temparray[:, index] = gpeaks[index]
 
     return peaks, gpeaks, temparray
 
@@ -91,40 +91,37 @@ def identify_orders(pts):
     from astropy.visualization import ZScaleInterval
     (vmin, vmax) = ZScaleInterval().get_limits(parameters['data'])
 
-    index = 1
-    go = []
-    pos = {}
     pp = []
     o = np.zeros_like(pts)
-    for i in range(1,80):
-# we find where there is a discontinuity in the position of the orders
-
-        po = np.where((pts[i,1:] - pts[i,:-1])>0)[0]
+    for i in range(1, 80):
+        # we find where there is a discontinuity in the position of the orders
+        po = np.where((pts[i, 1:] - pts[i, :-1]) > 0)[0]
         pp.append(po)
-# We first find the shortest list that describes the break. It's likely found for the best orders
+        # We first find the shortest list that describes the break. It's likely found for the best orders
     m = min([len(p) for p in pp])
-# Then we find which is this list of indices, and we use it as the places where the orders break
+    # Then we find which is this list of indices, and we use it as the places where the orders break
     for t in range(len(pp)):
         if len(pp[t]) == m and 0 not in pp[t]:
-            p = pp[t] +1
+            # We want to avoid catching the first pixel, in case it's a noisy one.
+            p = pp[t] + 1
             break
 
     print('changement à', p)
-    for i in range(1,80):
-    # The orders come in three section, so we coalesce them
-    # for i in range(1, pts.shape[0]):
+    for i in range(1, 80):
+        # The orders come in three section, so we coalesce them
+        # for i in range(1, pts.shape[0]):
         ind = np.arange(i, i-3, -1)
-        ind[np.where(ind<=0)]=0
+        ind[np.where(ind <= 0)] = 0
         a = ind > 0
         a = a*1
-        #print(ind)
-        o[i] = np.concatenate([pts[ind[0],:p[0]]*a[0], pts[ind[1],p[0]:p[1]]*a[1], pts[ind[2],p[1]:]*a[2]])
+        # print(ind)
+        o[i] = np.concatenate([
+                                pts[ind[0], :p[0]] * a[0],
+                                pts[ind[1], p[0]:p[1]] * a[1],
+                                pts[ind[2], p[1]:] * a[2]])
         # o = [a[0]*pts[i][ind[0]] for i in n] + [a[1]*pts[i][ind[1]] for i in nm1] + [a[2]*pts[i][ind[2]] for i in nm2]
-        #pos.update({str(i):o})
-    # In order to avoid 
-
-
-
+        # pos.update({str(i):o})
+    # In order to avoid
     return(o, pp)
 
 
@@ -296,10 +293,10 @@ def prepare_data(data):
     obs = fits.open(data)
     if parameters['chip'] == 'HRDET':
         bias = fits.open('R201704150021.fits')
-        d = obs[0].data# - bias[0].data
+        d = obs[0].data  # - bias[0].data
     else:
         bias = fits.open('H201704150021.fits')
-        d = obs[0].data[::-1, :]# - bias[0].data
+        d = obs[0].data[::-1, :]  # - bias[0].data
 
     dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
@@ -388,7 +385,7 @@ def extract_order(data, orderpositions, order=None):
         extracted.append(data[skb:skt, pixel].sum())
         scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
         sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
-        #print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
+        # print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
         # print(pixel, scb, sct)
         # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
         orderex.append(data[scb:sct, pixel])
@@ -497,4 +494,4 @@ if __name__ == "__main__":
     tp = 'H201704120017.fits'
     parameters['data'] = prepare_data(f)
     # parameters['order'] = fit_orders_pair(parameters['data'])
-    #wavelength(order)
+    # wavelength(order)
