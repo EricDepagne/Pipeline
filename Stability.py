@@ -94,62 +94,38 @@ def identify_orders(pts):
     index = 1
     go = []
     pos = {}
-    for index in range(1, 80):
-        for i in range(len(pts)):
-            pts[i] = pts[i].astype(float)
-        for i in range(1, len(pts)):
-            # print('i vaut :{i}'.format(i=i))
-            if i == 1:
-                orig = pts[i][index]
-                continue
-            # print(pts[i][index], orig)
-            if pts[i][index] > orig:
-                go.append(i)
+    pp = []
+    o = np.zeros_like(pts)
+    for i in range(1,80):
+# we find where there is a discontinuity in the position of the orders
 
-            orig = pts[i][index]
-        # print('order {i}, pixels : {o}'.format(i=index,o=go))
-        go = []
-    n = np.arange(1, 28)
-    nm1 = np.arange(28,34)
-    nm2 = np.arange(34, 41)
-    for i in range(1, 80):
+        po = np.where((pts[i,1:] - pts[i,:-1])>0)[0]
+        pp.append(po)
+# We first find the shortest list that describes the break. It's likely found for the best orders
+    m = min([len(p) for p in pp])
+# Then we find which is this list of indices, and we use it as the places where the orders break
+    for t in range(len(pp)):
+        if len(pp[t]) == m and 0 not in pp[t]:
+            p = pp[t] +1
+            break
+
+    print('changement à', p)
+    for i in range(1,80):
+    # The orders come in three section, so we coalesce them
+    # for i in range(1, pts.shape[0]):
         ind = np.arange(i, i-3, -1)
         ind[np.where(ind<=0)]=0
         a = ind > 0
         a = a*1
-        o = [a[0]*pts[i][ind[0]] for i in n] + [a[1]*pts[i][ind[1]] for i in nm1] + [a[2]*pts[i][ind[2]] for i in nm2]
-        pos.update({str(i):o})
-
-    #print(pos)
-
-    plt.imshow(parameters['data'], vmin=vmin, vmax=vmax)
-    index = np.arange(1,len(pts))
-    #for k in pos.keys():
-    fitter = fitting.SLSQPLSQFitter()
-    for k in range(13,14,2):
-        print('ordre {o}'.format(o=k))
-        print(len(index), len(pos[str(k)]))
-        plt.scatter(50*index, pos[str(k)])
-        #for x in range(1,7):
-        for x in range(len(pos[str(k)])):
-            xinit = pos[str(k)][x]
-            print('Start {s}'.format(s=xinit))
-            g1 = models.Gaussian1D(amplitude=1, mean=xinit, stddev=5)
-            g2 = models.Gaussian1D(amplitude=1, mean=xinit+30, stddev=5)
-            ginit = g1 + g2
-            xfit = np.arange(xinit-20, xinit+60)
-            y = parameters['data'][int(xinit)-20:int(xinit)+60,50*x]/np.max(parameters['data'][int(xinit)-20:int(xinit)+60,x])
-            gfit = fitter(ginit, xfit, y-y.min(), verblevel=0)
-            print('pix {pix} : new0 {new0} new1 {new1}'.format(pix=x, new0=gfit.mean_0.value, new1=gfit.mean_1.value))
-            plt.scatter(50*index[x], gfit.mean_0, marker='+')
-            #plt.plot(xfit, y,  xfit, gfit(xfit) )
+        #print(ind)
+        o[i] = np.concatenate([pts[ind[0],:p[0]]*a[0], pts[ind[1],p[0]:p[1]]*a[1], pts[ind[2],p[1]:]*a[2]])
+        # o = [a[0]*pts[i][ind[0]] for i in n] + [a[1]*pts[i][ind[1]] for i in nm1] + [a[2]*pts[i][ind[2]] for i in nm2]
+        #pos.update({str(i):o})
+    # In order to avoid 
 
 
-            # print('intervalle: {intervalle} at pixel {p}'.format(intervalle=y, p=50*x))
 
-    plt.show()
-
-    return(pos)
+    return(o, pp)
 
 
 def fit_orders_pair(arcdata):
