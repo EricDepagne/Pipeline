@@ -80,9 +80,7 @@ def find_peaks2():
     size = max([len(i) for i in gpeaks])
     print(size)
     temparray = np.empty((size, len(gpeaks)))
-    print(temparray.shape)
     for index in range(len(gpeaks)):
-        print(index)
         gpeaks[index].resize(size)
         temparray[:,index] = gpeaks[index]
 
@@ -125,6 +123,30 @@ def identify_orders(pts):
     #print(pos)
 
     plt.imshow(parameters['data'], vmin=vmin, vmax=vmax)
+    index = np.arange(1,len(pts))
+    #for k in pos.keys():
+    fitter = fitting.SLSQPLSQFitter()
+    for k in range(13,14,2):
+        print('ordre {o}'.format(o=k))
+        print(len(index), len(pos[str(k)]))
+        plt.scatter(50*index, pos[str(k)])
+        #for x in range(1,7):
+        for x in range(len(pos[str(k)])):
+            xinit = pos[str(k)][x]
+            print('Start {s}'.format(s=xinit))
+            g1 = models.Gaussian1D(amplitude=1, mean=xinit, stddev=5)
+            g2 = models.Gaussian1D(amplitude=1, mean=xinit+30, stddev=5)
+            ginit = g1 + g2
+            xfit = np.arange(xinit-20, xinit+60)
+            y = parameters['data'][int(xinit)-20:int(xinit)+60,50*x]/np.max(parameters['data'][int(xinit)-20:int(xinit)+60,x])
+            gfit = fitter(ginit, xfit, y-y.min(), verblevel=0)
+            print('pix {pix} : new0 {new0} new1 {new1}'.format(pix=x, new0=gfit.mean_0.value, new1=gfit.mean_1.value))
+            plt.scatter(50*index[x], gfit.mean_0, marker='+')
+            #plt.plot(xfit, y,  xfit, gfit(xfit) )
+
+
+            # print('intervalle: {intervalle} at pixel {p}'.format(intervalle=y, p=50*x))
+
     plt.show()
 
     return(pos)
