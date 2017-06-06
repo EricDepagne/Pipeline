@@ -73,8 +73,11 @@ def find_peaks2():
     p4 = np.array(peaks)
     for index in range(len(peaks)):
         # print(parameters['data'][:, 50*index][p4[index]], index)
-        m = np.isclose(parameters['data'][:, 50*index][p4[index]], np.zeros_like(parameters['data'][:, 50*index][p4[index]]), rtol=20, atol=20)
+# We find the location of the peaks found, which correspond to a fluctuation in the background. Those are defined as being up 20 counts above the value of the bias frame at the same location.
+        m = np.isclose(parameters['data'][:, step*index][p4[index]], np.zeros_like(parameters['data'][:, step*index][p4[index]]), rtol=20, atol=20)
+# once we have found all the pixels close to the background, we invert the array, which gives us all the pixels that are _not_ a fluctuation of the background
         gm = np.invert(m)
+# We add to the good peaks list those who are not this fluctuation.
         gpeaks.append(p4[index][gm])
     # Working with numpy arrays is easier, so now, we transform the list of arrays into a proper array
     size = max([len(i) for i in gpeaks])
@@ -88,9 +91,6 @@ def find_peaks2():
 
 
 def identify_orders(pts):
-    from astropy.visualization import ZScaleInterval
-    (vmin, vmax) = ZScaleInterval().get_limits(parameters['data'])
-
     pp = []
     o = np.zeros_like(pts)
     for i in range(1, 80):
@@ -106,23 +106,24 @@ def identify_orders(pts):
             p = pp[t] + 1
             break
 
-    print('changement à', p)
+    print('changement à', p, len(p))
+# The indices will allow us to know when to swith row in order to follow the orders.
+# The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
+    indices = [0] + list(p)+ [pts.shape[1]]
+    print(indices)
     for i in range(1, 80):
         # The orders come in three section, so we coalesce them
-        # for i in range(1, pts.shape[0]):
-        ind = np.arange(i, i-3, -1)
+        ind = np.arange(i, i-(len(p)+1), -1)
         ind[np.where(ind <= 0)] = 0
         a = ind > 0
         a = a*1
-        # print(ind)
-        o[i] = np.concatenate([
-                                pts[ind[0], :p[0]] * a[0],
-                                pts[ind[1], p[0]:p[1]] * a[1],
-                                pts[ind[2], p[1]:] * a[2]])
-        # o = [a[0]*pts[i][ind[0]] for i in n] + [a[1]*pts[i][ind[1]] for i in nm1] + [a[2]*pts[i][ind[2]] for i in nm2]
-        # pos.update({str(i):o})
-    # In order to avoid
-    return(o, pp)
+        print(ind, a)
+        for j in range(len(a)):
+            print(indices[j], indices[j+1])
+            arr1 = pts[ind[j], indices[j]:indices[j+1]] * a[j]
+            print('arr1', arr1)
+            o[i,indices[j]:indices[j+1]] = arr1
+    return o
 
 
 def fit_orders_pair(arcdata):
