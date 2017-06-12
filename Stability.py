@@ -54,6 +54,34 @@ def find_peaks(arc):
         goodpeaks.append(i)
     return peaks[goodpeaks], peaks
 
+def find_peaks3():
+    import numpy.ma as ma
+    pixelstart = 50
+    pixelstop = parameters['X2']
+    step = 50
+    xb = np.arange(pixelstart, pixelstop, step)
+    print(xb)
+    temp = []
+    for pixel in xb:
+        xp = find_peaks_cwt(savgol_filter(parameters['data'][:,pixel], 11, 5), widths=np.arange(1,20))
+# The wavelet transform sometimes picks noise. Let's remove it now.
+        m = np.isclose(parameters['data'][:,pixel][xp], np.zeros_like(parameters['data'][:,pixel][xp]), atol=20)
+        xxp = xp[np.invert(m)]
+        plt.scatter(pixel*np.ones(len(xxp)), xxp, s=3)
+        temp.append(xxp)
+    # Storing the location of the peaks in a numpy array
+    size = max([len(i) for i in temp])
+    peaks = np.ones((size, len(temp)), dtype=np.int)
+    for index in range(len(temp)):
+        temp[index].resize(size, refcheck=False)
+        peaks[:, index] = temp[index]
+# We need to remove the zeros.
+
+
+    return peaks
+
+
+
 
 def find_peaks2():
     # Instead of fitting a gaussian, we will parse the chip column by column and see if the find_peaks_cwt can do it better, since it seems to be detecting the orders much better on the edges of the chip.
@@ -63,18 +91,22 @@ def find_peaks2():
     pixelstop = parameters['X2']
     step = 50
     for pixel in np.arange(pixelstart, pixelstop, step):
-        cutfiltered = savgol_filter(parameters['data'][:, pixel], 11, 3)
+        #print('pixel:',pixel) 
+        cutfiltered = savgol_filter(parameters['data'][:, pixel], 11, 7)
         p = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
+        if pixel == 1950:
+            plt.scatter(p, parameters['data'][:,pixel][p])
 
         peaks.append(p)
 
     # Sometimes, peaks are found between orders, we need to remove them.
     # that's easy : the intensity of the pixel between orders is equal to the bias value : 920 for red, 690 for blue.
     p4 = np.array(peaks)
-    for index in range(len(peaks)):
+    for index in range(1,len(peaks)):
         # print(parameters['data'][:, 50*index][p4[index]], index)
+        #print(step*index)
 # We find the location of the peaks found, which correspond to a fluctuation in the background. Those are defined as being up 20 counts above the value of the bias frame at the same location.
-        m = np.isclose(parameters['data'][:, step*index][p4[index]], np.zeros_like(parameters['data'][:, step*index][p4[index]]), rtol=20, atol=20)
+        m = np.isclose(parameters['data'][:, step*index][p4[index]], np.zeros_like(parameters['data'][:, step*index][p4[index]]), rtol=30, atol=30)
 # once we have found all the pixels close to the background, we invert the array, which gives us all the pixels that are _not_ a fluctuation of the background
         gm = np.invert(m)
 # We add to the good peaks list those who are not this fluctuation.
@@ -86,6 +118,7 @@ def find_peaks2():
     for index in range(len(gpeaks)):
         gpeaks[index].resize(size)
         temparray[:, index] = gpeaks[index]
+    plt.show()
 
     return peaks, gpeaks, temparray
 
@@ -93,9 +126,10 @@ def find_peaks2():
 def identify_orders(pts):
     pp = []
     o = np.zeros_like(pts)
-    for i in range(1, 80):
+    for i in range(1, 73):
         # we find where there is a discontinuity in the position of the orders
         po = np.where((pts[i, 1:] - pts[i, :-1]) > 0)[0]
+        print(po)
         pp.append(po)
         # We first find the shortest list that describes the break. It's likely found for the best orders
     m = min([len(p) for p in pp])
@@ -111,7 +145,7 @@ def identify_orders(pts):
 # The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
     indices = [0] + list(p)+ [pts.shape[1]]
     print(indices)
-    for i in range(1, 80):
+    for i in range(1, 73):
         # The orders come in three section, so we coalesce them
         ind = np.arange(i, i-(len(p)+1), -1)
         ind[np.where(ind <= 0)] = 0
@@ -307,7 +341,7 @@ def prepare_data(data):
         dt[np.where(dt >= bins[-2])] = bins[2]
     else:
         print('Not a flat, not doing anything')
-    return d
+    return d-bias[0].data.mean()
 
 
 def plot_orders(data):
