@@ -54,8 +54,8 @@ def find_peaks(arc):
         goodpeaks.append(i)
     return peaks[goodpeaks], peaks
 
+
 def find_peaks3():
-    import numpy.ma as ma
     pixelstart = 50
     pixelstop = parameters['X2']
     step = 50
@@ -63,9 +63,9 @@ def find_peaks3():
     print(xb)
     temp = []
     for pixel in xb:
-        xp = find_peaks_cwt(savgol_filter(parameters['data'][:,pixel], 11, 5), widths=np.arange(1,20))
+        xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
 # The wavelet transform sometimes picks noise. Let's remove it now.
-        m = np.isclose(parameters['data'][:,pixel][xp], np.zeros_like(parameters['data'][:,pixel][xp]), atol=20)
+        m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
         xxp = xp[np.invert(m)]
         plt.scatter(pixel*np.ones(len(xxp)), xxp, s=3)
         temp.append(xxp)
@@ -77,10 +77,7 @@ def find_peaks3():
         peaks[:, index] = temp[index]
 # We need to remove the zeros.
 
-
     return peaks
-
-
 
 
 def find_peaks2():
@@ -91,25 +88,24 @@ def find_peaks2():
     pixelstop = parameters['X2']
     step = 50
     for pixel in np.arange(pixelstart, pixelstop, step):
-        #print('pixel:',pixel) 
         cutfiltered = savgol_filter(parameters['data'][:, pixel], 11, 7)
         p = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
         if pixel == 1950:
-            plt.scatter(p, parameters['data'][:,pixel][p])
+            plt.scatter(p, parameters['data'][:, pixel][p])
 
         peaks.append(p)
 
     # Sometimes, peaks are found between orders, we need to remove them.
     # that's easy : the intensity of the pixel between orders is equal to the bias value : 920 for red, 690 for blue.
     p4 = np.array(peaks)
-    for index in range(1,len(peaks)):
+    for index in range(1, len(peaks)):
         # print(parameters['data'][:, 50*index][p4[index]], index)
-        #print(step*index)
-# We find the location of the peaks found, which correspond to a fluctuation in the background. Those are defined as being up 20 counts above the value of the bias frame at the same location.
+        # print(step*index)
+        # We find the location of the peaks found, which correspond to a fluctuation in the background. Those are defined as being up 20 counts above the value of the bias frame at the same location.
         m = np.isclose(parameters['data'][:, step*index][p4[index]], np.zeros_like(parameters['data'][:, step*index][p4[index]]), rtol=30, atol=30)
-# once we have found all the pixels close to the background, we invert the array, which gives us all the pixels that are _not_ a fluctuation of the background
+        # once we have found all the pixels close to the background, we invert the array, which gives us all the pixels that are _not_ a fluctuation of the background
         gm = np.invert(m)
-# We add to the good peaks list those who are not this fluctuation.
+        # We add to the good peaks list those who are not this fluctuation.
         gpeaks.append(p4[index][gm])
     # Working with numpy arrays is easier, so now, we transform the list of arrays into a proper array
     size = max([len(i) for i in gpeaks])
@@ -124,6 +120,12 @@ def find_peaks2():
 
 
 def identify_orders(pts):
+    """
+    This function extracts the real location of the orders
+    The input parameter is a numpy array containing the probable location of the orders. It has been filtered
+    to remove the false detection of the algorithm
+
+    """
     pp = []
     o = np.zeros_like(pts)
     for i in range(1, 73):
@@ -143,7 +145,7 @@ def identify_orders(pts):
     print('changement à', p, len(p))
 # The indices will allow us to know when to swith row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
-    indices = [0] + list(p)+ [pts.shape[1]]
+    indices = [0] + list(p) + [pts.shape[1]]
     print(indices)
     for i in range(1, 73):
         # The orders come in three section, so we coalesce them
@@ -156,7 +158,7 @@ def identify_orders(pts):
             print(indices[j], indices[j+1])
             arr1 = pts[ind[j], indices[j]:indices[j+1]] * a[j]
             print('arr1', arr1)
-            o[i,indices[j]:indices[j+1]] = arr1
+            o[i, indices[j]:indices[j+1]] = arr1
     return o
 
 
