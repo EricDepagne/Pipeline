@@ -41,21 +41,7 @@ def classify_files():
     return files
 
 
-def find_peaks(arc):
-    goodpeaks = []
-    # print('dimensions : {dim}, parameters :{param}'.format(dim=arc.shape, param=parameters))
-    cutfiltered = savgol_filter(arc, 11, 3)
-    peaks = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
-    for i in range(peaks.shape[0]-1, 0, -1):
-        if cutfiltered[peaks[i]] < parameters[parameters['chip']]['Level'] or (peaks[i]-peaks)[i-1] > parameters[parameters['chip']]['Distance']:  # We find doublets of peaks, in order to fit both sky and object at the same time
-            # print('Wrong !{0}, {1}, {2}'.format(i, peaks[i], peaks[i-1]))
-            continue
-        # print(i, peaks[i], cutfiltered[peaks[i]])
-        goodpeaks.append(i)
-    return peaks[goodpeaks], peaks
-
-
-def find_peaks3():
+def find_peaks():
     pixelstart = 50
     pixelstop = parameters['X2']
     step = 50
@@ -79,45 +65,6 @@ def find_peaks3():
 # We need to remove the zeros.
 
     return peaks
-
-
-def find_peaks2():
-    # Instead of fitting a gaussian, we will parse the chip column by column and see if the find_peaks_cwt can do it better, since it seems to be detecting the orders much better on the edges of the chip.
-    peaks = []
-    gpeaks = []
-    pixelstart = 50
-    pixelstop = parameters['X2']
-    step = 50
-    for pixel in np.arange(pixelstart, pixelstop, step):
-        cutfiltered = savgol_filter(parameters['data'][:, pixel], 11, 7)
-        p = find_peaks_cwt(cutfiltered, widths=np.arange(1, 20))
-        if pixel == 1950:
-            plt.scatter(p, parameters['data'][:, pixel][p])
-
-        peaks.append(p)
-
-    # Sometimes, peaks are found between orders, we need to remove them.
-    # that's easy : the intensity of the pixel between orders is equal to the bias value : 920 for red, 690 for blue.
-    p4 = np.array(peaks)
-    for index in range(1, len(peaks)):
-        # print(parameters['data'][:, 50*index][p4[index]], index)
-        # print(step*index)
-        # We find the location of the peaks found, which correspond to a fluctuation in the background. Those are defined as being up 20 counts above the value of the bias frame at the same location.
-        m = np.isclose(parameters['data'][:, step*index][p4[index]], np.zeros_like(parameters['data'][:, step*index][p4[index]]), rtol=30, atol=30)
-        # once we have found all the pixels close to the background, we invert the array, which gives us all the pixels that are _not_ a fluctuation of the background
-        gm = np.invert(m)
-        # We add to the good peaks list those who are not this fluctuation.
-        gpeaks.append(p4[index][gm])
-    # Working with numpy arrays is easier, so now, we transform the list of arrays into a proper array
-    size = max([len(i) for i in gpeaks])
-    print(size)
-    temparray = np.empty((size, len(gpeaks)))
-    for index in range(len(gpeaks)):
-        gpeaks[index].resize(size)
-        temparray[:, index] = gpeaks[index]
-    plt.show()
-
-    return peaks, gpeaks, temparray
 
 
 def identify_orders(pts):
