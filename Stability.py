@@ -65,10 +65,11 @@ def find_peaks3():
     for pixel in xb:
         xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
 # The wavelet transform sometimes picks noise. Let's remove it now.
-        m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
-        xxp = xp[np.invert(m)]
-        plt.scatter(pixel*np.ones(len(xxp)), xxp, s=3)
-        temp.append(xxp)
+        # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
+        # print(m)
+        # xxp = xp[np.invert(m)]
+        plt.scatter(pixel*np.ones(len(xp)), xp, s=3)
+        temp.append(xp)
     # Storing the location of the peaks in a numpy array
     size = max([len(i) for i in temp])
     peaks = np.ones((size, len(temp)), dtype=np.int)
@@ -123,41 +124,48 @@ def identify_orders(pts):
     """
     This function extracts the real location of the orders
     The input parameter is a numpy array containing the probable location of the orders. It has been filtered
-    to remove the false detection of the algorithm
+    to remove the false detection of the algorithm.
 
     """
     pp = []
     o = np.zeros_like(pts)
-    for i in range(1, 73):
+    for i in range(0, 30):
         # we find where there is a discontinuity in the position of the orders
-        po = np.where((pts[i, 1:] - pts[i, :-1]) > 0)[0]
-        print(po)
+        # We only use the first 15 orders, since we know that it's the same for all orders
+        # and they are better defined than the other.
+        # If there is more than a 10 pixel shift between two consecutive peaks, then we have moved to the next order.
+        # Except if the value is zero, which indicates it's the first order.
+        po = np.where((pts[i, 1:] - pts[i, :-1]) > 5)[0]
         pp.append(po)
         # We first find the shortest list that describes the break. It's likely found for the best orders
     m = min([len(p) for p in pp])
     # Then we find which is this list of indices, and we use it as the places where the orders break
     for t in range(len(pp)):
-        if len(pp[t]) == m and 0 not in pp[t]:
-            # We want to avoid catching the first pixel, in case it's a noisy one.
+        if len(pp[t]) == m:
             p = pp[t] + 1
             break
 
     print('changement à', p, len(p))
-# The indices will allow us to know when to swith row in order to follow the orders.
+# The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
     indices = [0] + list(p) + [pts.shape[1]]
     print(indices)
-    for i in range(1, 73):
+    for i in range(73):
         # The orders come in three section, so we coalesce them
-        ind = np.arange(i, i-(len(p)+1), -1)
+        print('indice', i)
+        ind = np.arange(i, i-(len(p)+1), -1) + 1
         ind[np.where(ind <= 0)] = 0
         a = ind > 0
         a = a*1
-        print(ind, a)
         for j in range(len(a)):
-            print(indices[j], indices[j+1])
-            arr1 = pts[ind[j], indices[j]:indices[j+1]] * a[j]
-            print('arr1', arr1)
+            print(j)
+            print(indices[j]*50, indices[j+1]*50)
+            # For the first two orders, there are two discontinuities, but only one for the ones after.
+            diff = j
+            if i >= 2:
+                if j >= 2:
+                    diff = 1
+            arr1 = pts[i-diff, indices[j]:indices[j+1]] * a[j]
             o[i, indices[j]:indices[j+1]] = arr1
     return o
 
@@ -522,7 +530,7 @@ def getshape(orderinf, ordersup):
 if __name__ == "__main__":
     arcfiles = assess_stability()
     # f = 'R201510210012.fits'
-    f = arcfiles['Flat'][-1]
+    f = arcfiles['Flat'][3]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
