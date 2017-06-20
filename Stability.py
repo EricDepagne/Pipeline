@@ -117,6 +117,11 @@ def identify_orders(pts):
     return o
 
 
+def get_orders(dt):
+    from astropy.models import Gaussian1D
+
+
+
 def fit_orders_pair(arcdata):
     cut = arcdata[:, parameters['center']]
     order = {}
@@ -477,7 +482,7 @@ def getshape(orderinf, ordersup):
 if __name__ == "__main__":
     arcfiles = assess_stability()
     # f = 'R201510210012.fits'
-    f = arcfiles['Flat'][3]
+    f = arcfiles['Flat'][-1]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
