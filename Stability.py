@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 # -*- coding: utf-8 -*-
 
 # sys imports
@@ -54,7 +55,7 @@ def find_peaks():
         # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
         # print(m)
         # xxp = xp[np.invert(m)]
-        plt.scatter(pixel*np.ones(len(xp)), xp, s=3)
+        plt.scatter(pixel*np.ones(len(xp)), xp, s=30)
         temp.append(xp)
     # Storing the location of the peaks in a numpy array
     size = max([len(i) for i in temp])
@@ -117,10 +118,59 @@ def identify_orders(pts):
     return o
 
 
-def get_orders(dt):
-    from astropy.models import Gaussian1D
+# Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize
+def gaussian_fit(a, k):
+    from astropy.modeling import fitting, models
+    fitter = fitting.SLSQPLSQFitter()
+    gaus = models.Gaussian1D(amplitude=1., mean=a, stddev=5.)
+    # print(gaus)
+    # print(a, k)
+    y1 = a-25
+    y2 = a+25
+    y = np.arange(y1, y2)
+    gfit = fitter(gaus, y, parameters['data'][y, 50*(k+1)]/parameters['data'][y, 50*(k+1)].max(), verblevel=0)
+    return(gfit)
 
 
+def add_gaussian(a):
+    """ Computes the size of the orders by adding/substracting two times the standard dev of the gaussian
+    fit to the mean of the same fit.
+    Returns the lower limit, the center and the upper limit.
+    """
+    return(a.mean.value-2*a.stddev.value, a.mean.value, a.mean.value+2*a.stddev.value)
+
+
+def extract_orders(op):
+    """ Computes the location of the orders
+    Returns a 3D numpy array
+    """
+    vgf = np.vectorize(gaussian_fit)
+    vadd = np.vectorize(add_gaussian)
+    fit = np.zeros_like(op, dtype=object)
+    positions = np.zeros((op.shape[0], op.shape[1], 3))
+    for i in range(op.shape[1]):
+        tt = vgf(op[:, i], i)
+        fit[:, i] = tt
+    positions[:, :, 0], positions[:, :, 1], positions[:, :, 2] = vadd(fit)
+    return positions
+
+
+def get_orders(o):
+    from astropy.modeling import models
+    k = 0
+    j = 50*(k+1)
+    data = parameters['data'].copy()
+    for peak in range(40):  # o[:,0].shape[0]//2):
+        o0 = models.Gaussian1D(amplitude=1., mean=o[2*peak, k], stddev=5.)
+        o1 = models.Gaussian1D(amplitude=1., mean=o[2*peak+1, k], stddev=5.)
+        g = o0+o1
+        fitter = fitting.SLSQPLSQFitter()
+        y1 = o[2*peak, k]-25
+        y2 = o[2*peak+1, k]+25
+        y = np.arange(y1, y2)
+        gfit = fitter(g, y, data[y, j]/data[y, j].max(), verblevel=0)
+        plt.plot(y, data[y,j])
+        plt.plot(y, gfit(y)*data[y,j].max())
 
 def fit_orders_pair(arcdata):
     cut = arcdata[:, parameters['center']]
@@ -295,15 +345,19 @@ def prepare_data(data):
         bias = fits.open('H201704150021.fits')
         d = obs[0].data[::-1, :]  # - bias[0].data
 
-    dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])] - bias[0].data.mean()
+    dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])]# - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
     hist, bins = np.histogram(dt, bins=50)
+    d = d-bias[0].data.mean()
     if 'Flat' in parameters['ccdtype']:
         print('Flatfield : removing cosmics')
         dt[np.where(dt >= bins[-2])] = bins[2]
     else:
         print('Not a flat, not doing anything')
-    return d-bias[0].data.mean()
+
+    #d[np.where(d<=0)] = 0
+
+    return d
 
 
 def plot_orders(data):
@@ -360,7 +414,7 @@ def plot_orders(data):
     ax.imshow(orderframe, vmin=vmin, vmax=vmax)
 
 
-def extract_order(data, orderpositions, order=None):
+def old_extract_order(data, orderpositions, order=None):
     print('Extracting order {order}'.format(order=order))
     import pandas as pd
     from astropy.convolution import Gaussian2DKernel, convolve
