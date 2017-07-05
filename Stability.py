@@ -12,7 +12,6 @@ import numpy as np
 
 # astropy imports
 from astropy.io import fits
-from astropy.modeling import fitting, models
 
 # scipy imports
 from scipy.signal import savgol_filter
@@ -47,7 +46,6 @@ def find_peaks():
     pixelstop = parameters['X2']
     step = 50
     xb = np.arange(pixelstart, pixelstop, step)
-    print(xb)
     temp = []
     for pixel in xb:
         xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
@@ -118,7 +116,7 @@ def identify_orders(pts):
     return o
 
 
-# Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize
+# Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize une fois qu'on a défini des fonctions qui vont faire un calcul sur un élément des tableaux. C'est dans find_orders, vgf et vadd.
 def gaussian_fit(a, k):
     from astropy.modeling import fitting, models
     fitter = fitting.SLSQPLSQFitter()
@@ -137,10 +135,10 @@ def add_gaussian(a):
     fit to the mean of the same fit.
     Returns the lower limit, the center and the upper limit.
     """
-    return(a.mean.value-2*a.stddev.value, a.mean.value, a.mean.value+2*a.stddev.value)
+    return(a.mean.value-2.7*a.stddev.value, a.mean.value, a.mean.value+2.7*a.stddev.value)
 
 
-def extract_orders(op):
+def find_orders(op):
     """ Computes the location of the orders
     Returns a 3D numpy array
     """
@@ -152,148 +150,29 @@ def extract_orders(op):
         tt = vgf(op[:, i], i)
         fit[:, i] = tt
     positions[:, :, 0], positions[:, :, 1], positions[:, :, 2] = vadd(fit)
-    return positions
+    return positions, fit
 
 
-def get_orders(o):
-    from astropy.modeling import models
-    k = 0
-    j = 50*(k+1)
-    data = parameters['data'].copy()
-    for peak in range(40):  # o[:,0].shape[0]//2):
-        o0 = models.Gaussian1D(amplitude=1., mean=o[2*peak, k], stddev=5.)
-        o1 = models.Gaussian1D(amplitude=1., mean=o[2*peak+1, k], stddev=5.)
-        g = o0+o1
-        fitter = fitting.SLSQPLSQFitter()
-        y1 = o[2*peak, k]-25
-        y2 = o[2*peak+1, k]+25
-        y = np.arange(y1, y2)
-        gfit = fitter(g, y, data[y, j]/data[y, j].max(), verblevel=0)
-        plt.plot(y, data[y,j])
-        plt.plot(y, gfit(y)*data[y,j].max())
+def extract_orders(positions, data):
+    """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
+    [:,:,0] est la limite inférieure
+    [:,:,1] le centre,
+    [:,:,2] la limite supérieure
+    """
+# TODO penser à mettre l'array en fortran, vu qu'on travaille par colonnes, ça ira plus vite.
 
-def fit_orders_pair(arcdata):
-    cut = arcdata[:, parameters['center']]
-    order = {}
-    # print('peaks : {goodpeaks}'.format(goodpeaks=goodpeaks))
-    # plt.plot(cutfiltered)
-    # plt.scatter(peaks[goodpeaks], cutfiltered[peaks[goodpeaks]], c='green')
-    goodpeaks = find_peaks(cut)[::-1]
-    lmax = 0
-    # goodpeaks = find_peaks(cut)
-# We invert the lists to start from the top of the frame.
-    # goodpeaks = gps[::-1]
-    print('Orders found at the following pixels {goodpeaks} using the center column of the chip'.format(goodpeaks=goodpeaks))
-# Cette boucle est probablement vectorisable. ON doit pouvoir parser tous les ordres en même temps, car ils sont tous indépendants.
-#
-# yyg contains the pixels at the center of the chip where the orders are.
-# This is the origin of the gaussian fits.
-    # yyg = np.asarray([np.arange(goodpeaks[i]-50, goodpeaks[i]+20) for i in range(2, len(goodpeaks))])
-    # for i in range(20, 28):
-    for i in range(1, len(goodpeaks)-1):
-        center = parameters['center']
-        nbpixperstep = parameters['nbpixperstep']  # how far from a fit do we go to fit the next.
-# Computing how many steps are needed to parse the orders.
-        steps = np.int((parameters['X2']-parameters['X1']-center)/nbpixperstep)
-        skyorder = []
-        scienceorder = []
-        positions = []
-        fit = []
-        ordernumber = i + parameters[parameters['chip']]['OrderShift']
-        print('Detecting order number {order}.'.format(order=ordernumber))
-        for direction in [-1, 1]:
-            yg = np.arange(goodpeaks[i]-50, goodpeaks[i]+20)
-            # plt.plot(yg, cutfiltered[peaks[goodpeaks][i]-50:peaks[goodpeaks][i]+20])
-            g1 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i], stddev=5)
-            g2 = models.Gaussian1D(amplitude=1., mean=goodpeaks[i]-30, stddev=5)
-            gg_init = g1 + g2
-# In the compound results, parameters with _1 are relative to the science fibre, and those with _0 are the sky fibre.
-            fitter = fitting.SLSQPLSQFitter()
-        # Pour fitter les deux gaussiennes, il faut normaliser les flux à 1
-            gg_fit = fitter(gg_init, yg, cut[yg]/cut[yg].max(), verblevel=0)
-            sci = gg_fit.mean_0
-            sky = gg_fit.mean_1
-            for index in range(steps+1):
-                if direction == 1 and index == 0:
-                    # We do not need to redo the point at the center.
-                    continue
-                try:
-                    y = center+nbpixperstep*index*direction
-                except IndexError as e:
-                    print('Out of bounds')
-                    break
-                # print('y : {y}, step {step}, direction {direction}'.format(y=y, step=index, direction=direction))
-                # print(sci.value, sky.value)
-                if sci.value+20 > parameters['Y2']-1:
-                    # print('Overflow at {sci} for order {order}'.format(sci=sci.value, order=i))
-                    continue
-                # print(sci.value, sky.value)
-                xmobile = np.arange(sky.value-20, sci.value+20, dtype=np.int)
-                # print('xmobile : {xmobile}'.format(xmobile=xmobile.shape))
-                if xmobile.shape[0] == 0:
-                    print('Not enough points to find the order. Skipping')
-                    continue
-
-# TODO le fit rate quand les ordres ne sont pas bien fittés à cause du faible signal.
-# Cela fout le bordel, trouver comment faire pour que ça marche!
-
-                ymobile = arcdata[xmobile, y]
-                g1 = models.Gaussian1D(amplitude=1., mean=sci, stddev=5)
-                g2 = models.Gaussian1D(amplitude=1., mean=sky, stddev=5)
-                g = g1 + g2
-                gfit = fitter(g, xmobile, ymobile/ymobile.max(), verblevel=0)
-                if gfit.mean_0 > parameters['Y'] or gfit.mean_1 > parameters['Y']:
-                    print('Out of bounds')
-                    break
-                sci = gfit.mean_0
-                sky = gfit.mean_1
-                # print('Center of fibres at position {p} : sky : {sky}, sci : {sci}.'.format(p=y, sci=sci.value, sky=sky.value))
-                skyorder.append(sky.value)
-                scienceorder.append(sci.value)
-                positions.append(y)
-                fit.append(gfit)
-            if direction == -1:
-                fit = fit[::-1]
-                positions = positions[::-1]
-            if len(positions) > lmax:
-                lmax = len(positions)
-                p = positions
-            # print('nb de points : {positions}'.format(positions=len(positions)))
-            ysky = []
-            yscience = []
-            pfit = {}
-            polyorder = 7
-            for f in range(len(fit)):
-                ysky.append(fit[f].mean_0.value)
-                yscience.append(fit[f].mean_1.value)
-            # very rough filtering of the data, in order to get a proper fitting.
-            yska = np.array(ysky)
-            ysca = np.array(yscience)
-            outsc = np.where(ysca > ysca.mean() + 3*ysca.std())
-            outsk = np.where(yska > yska.mean() + 3*yska.std())
-            print('outliers : sky {sky}, science {science}'.format(sky=outsk, science=outsc))
-
-            if outsk[0].shape[0]:
-                yska[np.where(yska > yska.mean() + 3*yska.std())] = np.mean(yska[outsk[0][0]:5])
-            if outsc[0].shape[0]:
-                ysca[np.where(ysca > ysca.mean() + 3*ysca.std())] = np.mean(ysca[outsc[0][0]:5])
-            pfit.update(
-                    {
-                        'yscience': np.poly1d(np.polyfit(positions, yscience, polyorder)),
-                        'ysky': np.poly1d(np.polyfit(positions, ysky, polyorder)),
-                        'fit': fit,
-                        'yscdata': yscience,
-                        'yskdata': ysky
-                    }
-                    )
-        order.update(
-                {
-                    str(ordernumber): pfit
-                    }
-                )
-        order.update({'X': p})
-
-    return order
+    # data = parameters['data']
+    orders = np.zeros((positions.shape[0], data.shape[1]))
+    nborder = orders.shape[1]
+    x = [i for i in range(nborder)]
+    for o in range(2, orders.shape[0]):
+        X = [50*(i+1) for i in range(positions[o, :, 0].shape[0])]
+        foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
+        fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
+        orderwidth = np.ceil(np.mean(fosup(x)-foinf(x))).astype(int)
+        for i in x:
+            orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i))+orderwidth, i].sum()
+    return orders
 
 
 def assess_stability():
@@ -345,7 +224,7 @@ def prepare_data(data):
         bias = fits.open('H201704150021.fits')
         d = obs[0].data[::-1, :]  # - bias[0].data
 
-    dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])]# - bias[0].data.mean()
+    dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])]  # - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
     hist, bins = np.histogram(dt, bins=50)
     d = d-bias[0].data.mean()
@@ -355,7 +234,7 @@ def prepare_data(data):
     else:
         print('Not a flat, not doing anything')
 
-    #d[np.where(d<=0)] = 0
+    # d[np.where(d<=0)] = 0
 
     return d
 
