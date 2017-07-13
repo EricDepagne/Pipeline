@@ -26,6 +26,7 @@ def classify_files():
     thar = []
     bias = []
     flat = []
+    science = []
 
     ffile = glob('*.fits')
     for f in ffile:
@@ -37,7 +38,9 @@ def classify_files():
                 flat.append(f)
             if 'BIAS' in h:
                 bias.append(f)
-    files.update({'ThAr': thar, 'Bias': bias, 'Flat': flat})
+            if 'SCI' in h or 'MLT' in h or 'LSP' in h:
+                science.append(f)
+    files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
     return files
 
 
@@ -169,9 +172,11 @@ def extract_orders(positions, data):
         X = [50*(i+1) for i in range(positions[o, :, 0].shape[0])]
         foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
         fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
-        orderwidth = np.ceil(np.mean(fosup(x)-foinf(x))).astype(int)
+        orderwidth = np.floor(np.mean(fosup(x)-foinf(x))).astype(int)
         for i in x:
             orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i))+orderwidth, i].sum()
+# TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
+# Normaliser au nombre de pixels, peut-être.
     return orders
 
 
