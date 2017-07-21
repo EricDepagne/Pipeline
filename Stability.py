@@ -134,7 +134,7 @@ def gaussian_fit(a, k):
 
 
 def add_gaussian(a):
-    """ Computes the size of the orders by adding/substracting two times the standard dev of the gaussian
+    """ Computes the size of the orders by adding/substracting 2.7 times the standard dev of the gaussian
     fit to the mean of the same fit.
     Returns the lower limit, the center and the upper limit.
     """
@@ -416,6 +416,7 @@ def getshape(orderinf, ordersup):
     ysh5 = np.poly1d(np.polyfit(x, ysh4, 11))(x)
     # ysh5 fits now the shape of the ThAr order quite well, and we can start from there to identify the lines.
     return ysh5
+
 
 if __name__ == "__main__":
     arcfiles = assess_stability()
