@@ -24,15 +24,14 @@ import matplotlib.pylab as plt
 from astropy.visualization import ZScaleInterval
 
 
-
-def classify_files():
+def classify_files(directory):
     files = {}
     thar = []
     bias = []
     flat = []
     science = []
 
-    ffile = glob('*.fits')
+    ffile = glob(directory+'*.fits')
     for f in ffile:
         with fits.open(f) as fh:
             h = fh[0].header['PROPID']
@@ -184,8 +183,8 @@ def extract_orders(positions, data):
     return orders
 
 
-def assess_stability():
-    arclist = classify_files()
+def assess_stability(directory):
+    arclist = classify_files(directory)
     # print(arclist)
     return arclist
 
@@ -224,13 +223,13 @@ def set_parameters(arcfile):
     return parameters
 
 
-def prepare_data(data):
+def prepare_data(data, directory):
     obs = fits.open(data)
     if parameters['chip'] == 'HRDET':
-        bias = fits.open('R201704150021.fits')
+        bias = fits.open(directory+'R201704150021.fits')
         d = obs[0].data  # - bias[0].data
     else:
-        bias = fits.open('H201704150021.fits')
+        bias = fits.open(directory+'H201704150021.fits')
         d = obs[0].data[::-1, :]  # - bias[0].data
 
     dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])]  # - bias[0].data.mean()
@@ -422,15 +421,16 @@ def getshape(orderinf, ordersup):
 
 
 if __name__ == "__main__":
-    arcfiles = assess_stability()
+    directory = '../'
+    hrsfiles = assess_stability(directory)
     # f = 'R201510210012.fits'
-    f = arcfiles['Flat'][-1]
+    f = hrsfiles['Flat'][3]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
         parameters['data'] = parameters['data'][::-1, :]
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    parameters['data'] = prepare_data(f)
+    parameters['data'] = prepare_data(f, directory)
     # parameters['order'] = fit_orders_pair(parameters['data'])
     # wavelength(order)
