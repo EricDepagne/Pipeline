@@ -80,7 +80,7 @@ def match_orders(sci_data):
     # get wavelength calibration files
     cal_file = fits.open('../npH201510210012_obj.fits')
     cal_data = cal_file[1].data
-    orderlist = np.unique
+    #orderlist = np.unique
 
     # check OrderShift
     # if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0]:
@@ -109,32 +109,16 @@ def identify_orders(pts):
     The input parameter is a numpy array containing the probable location of the orders. It has been filtered to remove the false detection of the algorithm.
 
     """
-    pp = []
     o = np.zeros_like(pts)
-    for i in range(1, 30):
-        # we find where there is a discontinuity in the position of the orders
-        # We only use the first 15 orders, since we know that it's the same for all orders
-        # and they are better defined than the other.
-        # If there is more than a 10 pixel shift between two consecutive peaks, then we have moved to the next order.
-        # Except if the value is zero, which indicates it's the first order.
-        #po = np.where((pts[i, 1:] - pts[i, :-1]) > 5)[0]
-        po = np.where(np.gradient(pts[i])>np.gradient(pts[i]).std())[0]
-        pp.append(po)
-        # We first find the shortest list that describes the break. It's likely found for the best orders
-    print(pp)
-    m = min([len(p) for p in pp])
-    print(m)
-    # Then we find which is this list of indices, and we use it as the places where the orders break
-    for t in range(len(pp)):
-        if len(pp[t]) == m:
-            p = pp[t] + 1
-            break
+    # Detection of the first order shifts.
+    gr = np.where(np.gradient(pts[0]) > np.gradient(pts[0]).std())[0]
+    p = gr[1::2]
 
     print('changement à', p, len(p))
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
     indices = [0] + list(p) + [pts.shape[1]]
-    print(indices)
+    print('indices : ', indices)
     for i in range(73):
         # The orders come in three section, so we coalesce them
         print('indice', i)
@@ -143,14 +127,9 @@ def identify_orders(pts):
         a = ind > 0
         a = a * 1
         for j in range(len(a)):
-            print(j)
+            print('j:', j)
             print(indices[j] * 50, indices[j + 1] * 50)
-            # For the first two orders, there are two discontinuities, but only one for the ones after.
-            diff = j
-            if i >= 2:
-                if j >= 2:
-                    diff = 1
-            arr1 = pts[i - diff, indices[j]:indices[j + 1]] * a[j]
+            arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
             o[i, indices[j]:indices[j + 1]] = arr1
     return o
 
