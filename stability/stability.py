@@ -92,7 +92,7 @@ def match_orders(sci_data):
     for i in range(0, len(temp['Order'])):
 
         # Account for different Sizes
-        if sci_data[0][i] == temp['Order'][i]:
+        if sci_data[0][i] != cal_data['Order'][i]:
             offset = offset+26
 
         # Set points for temp
