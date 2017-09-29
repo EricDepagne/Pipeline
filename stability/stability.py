@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # -*- coding: utf-8 -*-
 
 # sys imports
@@ -31,10 +30,14 @@ def classify_files(directory):
     flat = []
     science = []
 
-    ffile = glob(directory+'*.fits')
+    ffile = glob(directory + '*.fits')
     for f in ffile:
         with fits.open(f) as fh:
-            h = fh[0].header['PROPID']
+            try:
+                h = fh[0].header['PROPID']
+            except KeyError:
+                print('no propid, probably not a SALT FITS file.')
+                continue
             if 'STABLE' in h:
                 thar.append(f)
             if 'CAL_FLAT' in h:
@@ -47,7 +50,7 @@ def classify_files(directory):
     return files
 
 
-def find_peaks():
+def find_peaks(parameters):
     pixelstart = 50
     pixelstop = parameters['X2']
     step = 50
@@ -59,7 +62,7 @@ def find_peaks():
         # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
         # print(m)
         # xxp = xp[np.invert(m)]
-        plt.scatter(pixel*np.ones(len(xp)), xp, s=30)
+        plt.scatter(pixel * np.ones(len(xp)), xp, s=30)
         temp.append(xp)
     # Storing the location of the peaks in a numpy array
     size = max([len(i) for i in temp])
@@ -72,25 +75,55 @@ def find_peaks():
     return peaks
 
 
+def match_orders(sci_data):
+
+    # get wavelength calibration files
+    cal_file = fits.open('../npH201510210012_obj.fits')
+    cal_data = cal_file[1].data
+    orderlist = np.unique
+
+    # check OrderShift
+    # if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0]:
+      #  continue
+    # cal_data = correct_orders(cal_data, sci_data)  # need to write if necessary
+    # create temp as empty version of our spectra
+    temp = np.zeros((len(sci_data[0]), 3))
+    offset = 0
+    for i in range(0, len(temp['Order'])):
+
+        # Account for different Sizes
+        if sci_data[0][i] == temp['Order'][i]:
+            offset = offset+26
+
+        # Set points for temp
+        temp[0][i] = cal_data['Order'][i]
+        temp[1][i] = cal_data['Wavelength'][i]
+        temp[2][i] = sci_data[1][i+offset]
+
+    return temp
+
+
 def identify_orders(pts):
     """
     This function extracts the real location of the orders
-    The input parameter is a numpy array containing the probable location of the orders. It has been filtered
-    to remove the false detection of the algorithm.
+    The input parameter is a numpy array containing the probable location of the orders. It has been filtered to remove the false detection of the algorithm.
 
     """
     pp = []
     o = np.zeros_like(pts)
-    for i in range(0, 30):
+    for i in range(1, 30):
         # we find where there is a discontinuity in the position of the orders
         # We only use the first 15 orders, since we know that it's the same for all orders
         # and they are better defined than the other.
         # If there is more than a 10 pixel shift between two consecutive peaks, then we have moved to the next order.
         # Except if the value is zero, which indicates it's the first order.
-        po = np.where((pts[i, 1:] - pts[i, :-1]) > 5)[0]
+        #po = np.where((pts[i, 1:] - pts[i, :-1]) > 5)[0]
+        po = np.where(np.gradient(pts[i])>np.gradient(pts[i]).std())[0]
         pp.append(po)
         # We first find the shortest list that describes the break. It's likely found for the best orders
+    print(pp)
     m = min([len(p) for p in pp])
+    print(m)
     # Then we find which is this list of indices, and we use it as the places where the orders break
     for t in range(len(pp)):
         if len(pp[t]) == m:
@@ -105,20 +138,20 @@ def identify_orders(pts):
     for i in range(73):
         # The orders come in three section, so we coalesce them
         print('indice', i)
-        ind = np.arange(i, i-(len(p)+1), -1) + 1
+        ind = np.arange(i, i - (len(p) + 1), -1) + 1
         ind[np.where(ind <= 0)] = 0
         a = ind > 0
-        a = a*1
+        a = a * 1
         for j in range(len(a)):
             print(j)
-            print(indices[j]*50, indices[j+1]*50)
+            print(indices[j] * 50, indices[j + 1] * 50)
             # For the first two orders, there are two discontinuities, but only one for the ones after.
             diff = j
             if i >= 2:
                 if j >= 2:
                     diff = 1
-            arr1 = pts[i-diff, indices[j]:indices[j+1]] * a[j]
-            o[i, indices[j]:indices[j+1]] = arr1
+            arr1 = pts[i - diff, indices[j]:indices[j + 1]] * a[j]
+            o[i, indices[j]:indices[j + 1]] = arr1
     return o
 
 
@@ -129,11 +162,11 @@ def gaussian_fit(a, k):
     gaus = models.Gaussian1D(amplitude=1., mean=a, stddev=5.)
     # print(gaus)
     # print(a, k)
-    y1 = a-25
-    y2 = a+25
+    y1 = a - 25
+    y2 = a + 25
     y = np.arange(y1, y2)
-    gfit = fitter(gaus, y, parameters['data'][y, 50*(k+1)]/parameters['data'][y, 50*(k+1)].max(), verblevel=0)
-    return(gfit)
+    gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
+    return gfit
 
 
 def add_gaussian(a):
@@ -141,7 +174,7 @@ def add_gaussian(a):
     fit to the mean of the same fit.
     Returns the lower limit, the center and the upper limit.
     """
-    return(a.mean.value-2.7*a.stddev.value, a.mean.value, a.mean.value+2.7*a.stddev.value)
+    return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
 
 
 def find_orders(op):
@@ -170,14 +203,16 @@ def extract_orders(positions, data):
     # data = parameters['data']
     orders = np.zeros((positions.shape[0], data.shape[1]))
     nborder = orders.shape[1]
+    print(nborder)
     x = [i for i in range(nborder)]
     for o in range(2, orders.shape[0]):
-        X = [50*(i+1) for i in range(positions[o, :, 0].shape[0])]
+        X = [50 * (i + 1) for i in range(positions[o, :, 0].shape[0])]
         foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
         fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
-        orderwidth = np.floor(np.mean(fosup(x)-foinf(x))).astype(int)
+        orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
+        # orderwidth = 30
         for i in x:
-            orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i))+orderwidth, i].sum()
+            orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
 # TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
 # Normaliser au nombre de pixels, peut-être.
     return orders
@@ -192,55 +227,54 @@ def assess_stability(directory):
 def set_parameters(arcfile):
     print('extracting information from file {arcfile}'.format(arcfile=arcfile))
     ff = fits.open(arcfile)
-    parameters = {
-            'HBDET': {
-                'Level': 15,
-                'Distance': 30,
-                'OrderShift': 85,
-                'XPix': 2048,
-                'BiasLevel': 690
-                    },
-            'HRDET': {
-                'Level': 15,
-                'Distance': 40,
-                'OrderShift': 53,
-                'XPix': 4096,
-                'BiasLevel': 920
-                    },
-            'X': ff[0].header['NAXIS1'],
-            'Y': ff[0].header['NAXIS2'],
-            'center': int(ff[0].header['NAXIS1']/2),
-            'chip': ff[0].header['DETNAM'],
-            'data': ff[0].data,
-            'mode': ff[0].header['OBSMODE'],
-            'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
-            'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
-            'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
-            'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
-            'nbpixperstep': 11,
-            'ccdtype': ff[0].header['CCDTYPE']
-                }
+    parameters = {'HBDET': {'Level': 15,
+                            'Distance': 30,
+                            'OrderShift': 84,
+                            'XPix': 2048,
+                            'BiasLevel': 690},
+                  'HRDET': {'Level': 15,
+                            'Distance': 40,
+                            'OrderShift': 53,
+                            'XPix': 4096,
+                            'BiasLevel': 920},
+                  'X': ff[0].header['NAXIS1'],
+                  'Y': ff[0].header['NAXIS2'],
+                  'center': int(ff[0].header['NAXIS1'] / 2),
+                  'chip': ff[0].header['DETNAM'],
+                  'data': ff[0].data,
+                  'mode': ff[0].header['OBSMODE'],
+                  'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
+                  'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
+                  'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
+                  'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
+                  'nbpixperstep': 11,
+                  'ccdtype': ff[0].header['CCDTYPE']}
+    parameters['data'] = parameters['data'][:, parameters['X1']-1:parameters['X2']]
+    if 'HBD'in parameters['chip']:
+        print('Blue detector')
+        parameters['data'] = parameters['data'][::-1, :]
     return parameters
 
 
 def prepare_data(data, directory):
     obs = fits.open(data)
     if parameters['chip'] == 'HRDET':
-        bias = fits.open(directory+'R201704150021.fits')
+        bias = fits.open(directory + 'R201704150021.fits')
         d = obs[0].data  # - bias[0].data
     else:
-        bias = fits.open(directory+'H201704150021.fits')
+        bias = fits.open(directory + 'H201704150021.fits')
         d = obs[0].data[::-1, :]  # - bias[0].data
 
     dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])]  # - bias[0].data.mean()
 # We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
     hist, bins = np.histogram(dt, bins=50)
-    d = d-bias[0].data.mean()
+    d = d - bias[0].data.mean()
     if 'Flat' in parameters['ccdtype']:
         print('Flatfield : removing cosmics')
-        dt[np.where(dt >= bins[-2])] = bins[2]
+        d[np.where(dt >= bins[-2])] = bins[2]
     else:
         print('Not a flat, not doing anything')
+    d[np.where(dt >= bins[-2])] = bins[2]
 
     # d[np.where(d<=0)] = 0
 
@@ -273,20 +307,20 @@ def plot_orders(data):
                 keepi = i
             except ValueError:
                 i = keepi
-            if i > len(orderpositions[o]['fit'])-1:
+            if i > len(orderpositions[o]['fit']) - 1:
                 continue
             x.append(pixel)
             # We append the center of the order, the lower and the upper limits to ysky and yscience.
 
             ysky.append(orderpositions[o]['yscience'](pixel))
-            ysky.append(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)
-            ysky.append(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
+            ysky.append(orderpositions[o]['yscience'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_1)
+            ysky.append(orderpositions[o]['yscience'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_1)
             yscience.append(orderpositions[o]['ysky'](pixel))
-            yscience.append(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)
-            yscience.append(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
-        xlabelleft = 0.25*(x[-1]+x[0])
-        xlabelcentre = 0.5*(x[-1]+x[0])
-        xlabelright = 0.75*(x[-1]+x[0])
+            yscience.append(orderpositions[o]['ysky'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_0)
+            yscience.append(orderpositions[o]['ysky'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_0)
+        xlabelleft = 0.25 * (x[-1] + x[0])
+        xlabelcentre = 0.5 * (x[-1] + x[0])
+        xlabelright = 0.75 * (x[-1] + x[0])
         ylabelleft = orderpositions[o]['yscience'](xlabelleft)
         ylabelcentre = orderpositions[o]['yscience'](xlabelcentre)
         ylabelright = orderpositions[o]['yscience'](xlabelright)
@@ -295,8 +329,8 @@ def plot_orders(data):
         ax.annotate(o, xy=(xlabelright, ylabelright), color='orange')
         # print(x, y1)
         # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
-        ax.plot(x, ysky[::3], 'green',  x, ysky[1::3], 'blue', x, ysky[2::3], 'blue')
-        ax.plot(x, yscience[::3], 'green',  x, yscience[1::3], 'red', x, yscience[2::3], 'red')
+        ax.plot(x, ysky[::3], 'green', x, ysky[1::3], 'blue', x, ysky[2::3], 'blue')
+        ax.plot(x, yscience[::3], 'green', x, yscience[1::3], 'red', x, yscience[2::3], 'red')
     ax.imshow(orderframe, vmin=vmin, vmax=vmax)
 
 
@@ -317,11 +351,11 @@ def old_extract_order(data, orderpositions, order=None):
             keepi = i
         except ValueError:
             i = keepi
-        skb = np.int(orderpositions[o]['yscience'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_1)+1
-        skt = np.int(orderpositions[o]['yscience'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_1)
+        skb = np.int(orderpositions[o]['yscience'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_1) + 1
+        skt = np.int(orderpositions[o]['yscience'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_1)
         extracted.append(data[skb:skt, pixel].sum())
-        scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5*orderpositions[o]['fit'][i].stddev_0)+1
-        sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5*orderpositions[o]['fit'][i].stddev_0)
+        scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_0) + 1
+        sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_0)
         # print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
         # print(pixel, scb, sct)
         # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
@@ -345,7 +379,7 @@ def wavelength(orders):
     with open('HRS_Spectral_Format.dat') as f:
         for l in f:
             (o, lc, ra) = l.split(',')
-            wl[str(o)] = {'λcen': lc, 'range': ra.strip('\n'), 'step': np.float(ra.strip())/parameters[parameters['chip']]['XPix']}
+            wl[str(o)] = {'λcen': lc, 'range': ra.strip('\n'), 'step': np.float(ra.strip()) / parameters[parameters['chip']]['XPix']}
     npix = parameters['X2'] - parameters['center']
     x = np.arange(4095)
     l = []
@@ -381,8 +415,8 @@ def wavelength(orders):
         if order in orders.keys():
             lc = np.float(wl[order]['λcen'])
             st = wl[order]['step']
-            xlm = [lc - i*st for i in range(npix)]
-            xlp = [lc + i*st for i in range(npix)]
+            xlm = [lc - i * st for i in range(npix)]
+            xlp = [lc + i * st for i in range(npix)]
             xlm.sort()
             xlp.sort()
             xl = xlm + xlp
@@ -391,7 +425,7 @@ def wavelength(orders):
             ylsk = orders[order]['ysky']
             ax.plot(xl[parameters['X1']:parameters['X2']], ylsc(x), 'green', xl[parameters['X1']:parameters['X2']], ylsk(x), 'orange')
             print(lc, type(lc), ylsk(lc), order)
-            ax.annotate(order, xy=(lc,  ylsk(lc)))
+            ax.annotate(order, xy=(lc, ylsk(lc)))
         else:
             continue
     return wl
@@ -424,7 +458,7 @@ if __name__ == "__main__":
     directory = '../'
     hrsfiles = assess_stability(directory)
     # f = 'R201510210012.fits'
-    f = hrsfiles['Flat'][3]
+    f = hrsfiles['Flat'][-1]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
