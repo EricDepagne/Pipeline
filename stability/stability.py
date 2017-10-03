@@ -16,6 +16,9 @@ from astropy.io import fits
 from scipy.signal import savgol_filter
 from scipy.signal import find_peaks_cwt
 
+# pandas imports
+import pandas as pd
+
 # matplotlib imports
 import matplotlib.pylab as plt
 
@@ -57,6 +60,8 @@ def find_peaks(parameters):
     xb = np.arange(pixelstart, pixelstop, step)
     temp = []
     for pixel in xb:
+        if pixel > parameters[parameters['chip']]['XPix']:
+            break
         xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
 # The wavelet transform sometimes picks noise. Let's remove it now.
         # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
@@ -208,7 +213,7 @@ def set_parameters(arcfile):
     ff = fits.open(arcfile)
     parameters = {'HBDET': {'Level': 15,
                             'Distance': 30,
-                            'OrderShift': 84,
+                            'OrderShift': 83,
                             'XPix': 2048,
                             'BiasLevel': 690},
                   'HRDET': {'Level': 15,
@@ -222,6 +227,7 @@ def set_parameters(arcfile):
                   'chip': ff[0].header['DETNAM'],
                   'data': ff[0].data,
                   'mode': ff[0].header['OBSMODE'],
+                  'name': ff[0].header['OBJECT'],
                   'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
                   'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
                   'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
@@ -348,7 +354,38 @@ def old_extract_order(data, orderpositions, order=None):
     return np.array(extracted), np.array(orderconvolved)
 
 
-def wavelength(orders):
+def wavelength(extracted_data, pyhrs_data, star):
+    '''
+    In order to get the wavelength solution, we will merge the wavelength solution
+    obtained from the pyhrs reduced spectra, with our extracted data
+    This is a temporary solution until we have a working wavelength solution.
+    '''
+    list_orders = np.unique(pyhrs_data[1].data['Order'])
+    ex = []
+    dex = pd.DataFrame()
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+
+    for o in list_orders:
+        a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
+        ax1.plot(a['Wavelength'], a['Flux']*1)
+        line = 2*(int(o)-parameters['HBDET']['OrderShift'])
+        ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
+        ex.append([a['Wavelength'], extracted_data[line], extracted_data[line-1], [str(o) for i in range(2048)]])
+    for i in range(len(ex)):
+        dex = dex.append(pd.DataFrame(ex[i]).T)
+    if 'HBDET' in parameters['chip']:
+        ext = 'B'
+    else:
+        ext = 'R'
+    name = star + '_' + ext + '.csv.gz'
+    print(name)
+    dex.to_csv(name, compression='gzip')
+  
+    return dex
+
+
+def old_wavelength(orders):
     # We load the spectral format of the chips"
     # fmt = np.loadtxt('HRS_Spectral_Format.dat', delimiter=',', dtype={'names':('order', 'centralwl', 'wlrange'),
     #                                                                 'formats' :('S3', 'f4', 'f4')})
