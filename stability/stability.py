@@ -85,11 +85,10 @@ def match_orders(sci_data):
     # get wavelength calibration files
     cal_file = fits.open('../npH201510210012_obj.fits')
     cal_data = cal_file[1].data
-    #orderlist = np.unique
 
     # check OrderShift
     # if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0]:
-      #  continue
+    #   continue
     # cal_data = correct_orders(cal_data, sci_data)  # need to write if necessary
     # create temp as empty version of our spectra
     temp = np.zeros((len(sci_data[0]), 3))
@@ -319,41 +318,6 @@ def plot_orders(data):
     ax.imshow(orderframe, vmin=vmin, vmax=vmax)
 
 
-def old_extract_order(data, orderpositions, order=None):
-    print('Extracting order {order}'.format(order=order))
-    import pandas as pd
-    from astropy.convolution import Gaussian2DKernel, convolve
-    # We try first on one particular order.
-    o = str(order)
-    X = orderpositions['X']
-    extracted = []
-    orderex = []
-    for pixel in np.arange(parameters['X1'], min(data.shape[1], parameters['X2'])):
-        if pixel < X[0]:
-            continue
-        try:
-            i = X.index(pixel)
-            keepi = i
-        except ValueError:
-            i = keepi
-        skb = np.int(orderpositions[o]['yscience'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_1) + 1
-        skt = np.int(orderpositions[o]['yscience'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_1)
-        extracted.append(data[skb:skt, pixel].sum())
-        scb = np.int(orderpositions[o]['ysky'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_0) + 1
-        sct = np.int(orderpositions[o]['ysky'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_0)
-        # print('Order size at pixel {pixel}: \nScience: {science} pixels\nSky: {sky}'.format(pixel=pixel, science=sct-scb, sky=skt-skb))
-        # print(pixel, scb, sct)
-        # print(data[scb:sct, pixel].sum(), data[scb:sct, pixel].std())
-        orderex.append(data[scb:sct, pixel])
-        extracted.append(data[scb:sct, pixel].sum())
-    df = pd.DataFrame(orderex)
-    gaussk = Gaussian2DKernel(stddev=4)
-    oc = convolve(df.T.values, gaussk)
-    orderconvolved = oc.sum(axis=0)
-
-    return np.array(extracted), np.array(orderconvolved)
-
-
 def wavelength(extracted_data, pyhrs_data, star):
     '''
     In order to get the wavelength solution, we will merge the wavelength solution
@@ -381,70 +345,7 @@ def wavelength(extracted_data, pyhrs_data, star):
     name = star + '_' + ext + '.csv.gz'
     print(name)
     dex.to_csv(name, compression='gzip')
-  
     return dex
-
-
-def old_wavelength(orders):
-    # We load the spectral format of the chips"
-    # fmt = np.loadtxt('HRS_Spectral_Format.dat', delimiter=',', dtype={'names':('order', 'centralwl', 'wlrange'),
-    #                                                                 'formats' :('S3', 'f4', 'f4')})
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    wl = {}
-    with open('HRS_Spectral_Format.dat') as f:
-        for l in f:
-            (o, lc, ra) = l.split(',')
-            wl[str(o)] = {'λcen': lc, 'range': ra.strip('\n'), 'step': np.float(ra.strip()) / parameters[parameters['chip']]['XPix']}
-    npix = parameters['X2'] - parameters['center']
-    x = np.arange(4095)
-    l = []
-    o = []
-    lcen = []
-    step = []
-    lrange = []
-    for k in wl.keys():
-        # print(k, wl[k]['λcen'])
-        o.append(np.float(k))
-        lcen.append(np.float(wl[k]['λcen']))
-        step.append(np.float(wl[k]['step']))
-        lrange.append(np.float(wl[k]['range']))
-    os = o.copy()
-    # plt.scatter(o, lcen)
-    wl0 = np.poly1d(np.polyfit(o, lcen, 5))
-    wl1 = np.poly1d(np.polyfit(o, step, 5))
-    wl2 = np.poly1d(np.polyfit(o, lrange, 5))
-    os.sort()
-    # plt.plot(os, wl0(os))
-    # Now the missing orders
-    xo = []
-    for xt in range(int(min(os)), int(max(os))):
-        if not xt % 2:
-            xo.append(xt)
-    # print(xo, wl0(xo), wl1(xo), wl2(xo))
-    # plt.scatter(xo, wl1(xo))
-    t = {}
-    for index, order in enumerate(xo):
-        t.update({str(order): {'range': wl2(xo)[index], 'step': wl1(xo)[index], 'λcen': wl0(xo)[index]}})
-    wl.update(t)
-    for order in wl.keys():
-        if order in orders.keys():
-            lc = np.float(wl[order]['λcen'])
-            st = wl[order]['step']
-            xlm = [lc - i * st for i in range(npix)]
-            xlp = [lc + i * st for i in range(npix)]
-            xlm.sort()
-            xlp.sort()
-            xl = xlm + xlp
-            print(len(xl))
-            ylsc = orders[order]['yscience']
-            ylsk = orders[order]['ysky']
-            ax.plot(xl[parameters['X1']:parameters['X2']], ylsc(x), 'green', xl[parameters['X1']:parameters['X2']], ylsk(x), 'orange')
-            print(lc, type(lc), ylsk(lc), order)
-            ax.annotate(order, xy=(lc, ylsk(lc)))
-        else:
-            continue
-    return wl
 
 
 def getshape(orderinf, ordersup):
