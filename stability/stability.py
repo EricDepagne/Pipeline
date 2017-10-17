@@ -82,29 +82,28 @@ def find_peaks(parameters):
 
 def match_orders(sci_data):
 
-    # get wavelength calibration files
-    cal_file = fits.open('../npH201510210012_obj.fits')
-    cal_data = cal_file[1].data
+	#get wavelength calibration files
+	cal_file = fits.open('npH201510210012_obj.fits')
+	cal_data = cal_file[1].data
 
-    # check OrderShift
-    # if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0]:
-    #   continue
-    # cal_data = correct_orders(cal_data, sci_data)  # need to write if necessary
-    # create temp as empty version of our spectra
-    temp = np.zeros((len(sci_data[0]), 3))
-    offset = 0
-    for i in range(0, len(temp['Order'])):
+	#check OrderShift
+	if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0] :
+		cal_data=correct_orders(cal_data,sci_data) #need to write if necessary
+	
 
-        # Account for different Sizes
-        if sci_data[0][i] != cal_data['Order'][i]:
-            offset = offset+26
+	#create temp as a copy of calibrated data
+	temp = cal_data
 
-        # Set points for temp
-        temp[0][i] = cal_data['Order'][i]
-        temp[1][i] = cal_data['Wavelength'][i]
-        temp[2][i] = sci_data[1][i+offset]
+	#Determine which points to remove from sci_data
+	excess=np.empty(0,dtype=(int))
+	for i in range(1,38):
+		excess=np.append(excess,np.array(range(i*2074-27,i*2074-1)))
+	
+	#returns sci_data without excess data points
+	temp['Flux'] = np.delete(sci_data['Flux'],excess)
 
-    return temp
+	return temp
+	
 
 
 def identify_orders(pts):
@@ -369,6 +368,7 @@ def getshape(orderinf, ordersup):
     ysh5 = np.poly1d(np.polyfit(x, ysh4, 11))(x)
     # ysh5 fits now the shape of the ThAr order quite well, and we can start from there to identify the lines.
     return ysh5
+
 
 
 if __name__ == "__main__":
