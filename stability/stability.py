@@ -87,8 +87,8 @@ def match_orders(sci_data):
 	cal_data = cal_file[1].data
 
 	#check OrderShift
-	if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0] :
-		cal_data=correct_orders(cal_data,sci_data) #need to write if necessary
+	#if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0] :
+		#cal_data=correct_orders(cal_data,sci_data) #need to write if necessary
 	
 
 	#create temp as a copy of calibrated data
