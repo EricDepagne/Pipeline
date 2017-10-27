@@ -61,6 +61,7 @@ def find_peaks(parameters):
     temp = []
     for pixel in xb:
         if pixel > parameters[parameters['chip']]['XPix']:
+            print(pixel)
             break
         xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
 # The wavelet transform sometimes picks noise. Let's remove it now.
@@ -146,6 +147,7 @@ def gaussian_fit(a, k):
     # print(a, k)
     y1 = a - 25
     y2 = a + 25
+    #print(y1, y2)
     y = np.arange(y1, y2)
     gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
     return gfit
@@ -324,7 +326,6 @@ def wavelength(extracted_data, pyhrs_data, star):
     This is a temporary solution until we have a working wavelength solution.
     '''
     list_orders = np.unique(pyhrs_data[1].data['Order'])
-    ex = []
     dex = pd.DataFrame()
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
@@ -333,10 +334,9 @@ def wavelength(extracted_data, pyhrs_data, star):
         a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
         ax1.plot(a['Wavelength'], a['Flux']*1)
         line = 2*(int(o)-parameters['HBDET']['OrderShift'])
+        print(line)
         ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
-        ex.append([a['Wavelength'], extracted_data[line], extracted_data[line-1], [str(o) for i in range(2048)]])
-    for i in range(len(ex)):
-        dex = dex.append(pd.DataFrame(ex[i]).T)
+        dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
     if 'HBDET' in parameters['chip']:
         ext = 'B'
     else:
@@ -344,6 +344,10 @@ def wavelength(extracted_data, pyhrs_data, star):
     name = star + '_' + ext + '.csv.gz'
     print(name)
     dex.to_csv(name, compression='gzip')
+# Removing the duplicate indices from the append()
+    dex = dex.reset_index()
+# Reordering the columns
+    dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
     return dex
 
 
@@ -375,7 +379,7 @@ if __name__ == "__main__":
     directory = '../'
     hrsfiles = assess_stability(directory)
     # f = 'R201510210012.fits'
-    f = hrsfiles['Flat'][-1]
+    f = hrsfiles['Flat'][1]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
