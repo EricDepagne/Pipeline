@@ -241,7 +241,7 @@ def set_parameters(arcfile):
     return parameters
 
 
-def prepare_data(data, directory):
+def prepare_data(parameters, data, directory):
     obs = fits.open(data)
     if parameters['chip'] == 'HRDET':
         bias = fits.open(directory + 'R201704150021.fits')
@@ -333,7 +333,7 @@ def wavelength(extracted_data, pyhrs_data, star):
     for o in list_orders:
         a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
         ax1.plot(a['Wavelength'], a['Flux']*1)
-        line = 2*(int(o)-parameters['HBDET']['OrderShift'])
+        line = 2*(int(o)-parameters[parameters['chip']]['OrderShift'])
         print(line)
         ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
         dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
@@ -384,8 +384,11 @@ if __name__ == "__main__":
     if 'HBD'in parameters['chip']:
         print('Blue detector')
         parameters['data'] = parameters['data'][::-1, :]
+    else:
+	print('Red detector')
+	#parameters['data'] = parameters['data'][::-1, :]<--------Not Sure what to put here. please advise
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
-    parameters['data'] = prepare_data(f, directory)
+    parameters['data'] = prepare_data(parameters, f, directory)
     # parameters['order'] = fit_orders_pair(parameters['data'])
     # wavelength(order)
