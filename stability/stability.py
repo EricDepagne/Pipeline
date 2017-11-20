@@ -64,7 +64,7 @@ def find_peaks(parameters):
         if pixel > parameters[parameters['chip']]['XPix']:
             print(pixel)
             break
-#TODO : Older version of scipy output a list and not a numpy array. Test it.
+# TODO : Older version of scipy output a list and not a numpy array. Test it.
         xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
 # The wavelet transform sometimes picks noise. Let's remove it now.
         # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
@@ -85,28 +85,22 @@ def find_peaks(parameters):
 
 def match_orders(sci_data):
 
-	#get wavelength calibration files
-	cal_file = fits.open('npH201510210012_obj.fits')
-	cal_data = cal_file[1].data
+        # get wavelength calibration files
+        cal_file = fits.open('npH201510210012_obj.fits')
+        cal_data = cal_file[1].data
 
-	#check OrderShift
-	#if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0] :
-		#cal_data=correct_orders(cal_data,sci_data) #need to write if necessary
-	
-
-	#create temp as a copy of calibrated data
-	temp = cal_data
-
-	#Determine which points to remove from sci_data
-	excess=np.empty(0,dtype=(int))
-	for i in range(1,38):
-		excess=np.append(excess,np.array(range(i*2074-27,i*2074-1)))
-	
-	#returns sci_data without excess data points
-	temp['Flux'] = np.delete(sci_data['Flux'],excess)
-
-	return temp
-	
+        # check OrderShift
+        # if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0] :
+        # cal_data=correct_orders(cal_data,sci_data) #need to write if necessary
+        # create temp as a copy of calibrated data
+        temp = cal_data
+        # Determine which points to remove from sci_data
+        excess = np.empty(0, dtype=(int))
+        for i in range(1, 38):
+                excess = np.append(excess, np.array(range(i*2074-27, i*2074-1)))
+        # returns sci_data without excess data points
+        temp['Flux'] = np.delete(sci_data['Flux'], excess)
+        return temp
 
 
 def identify_orders(pts):
@@ -149,11 +143,8 @@ def gaussian_fit(a, k):
     # print(a, k)
     y1 = a - 25
     y2 = a + 25
-    #print(y1, y2)
     y = np.arange(y1, y2)
     gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
-    if k == 10:
-        print(gfit)
     return gfit
 
 
@@ -162,7 +153,6 @@ def add_gaussian(a):
     fit to the mean of the same fit.
     Returns the lower limit, the center and the upper limit.
     """
-    #print(a)
     return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
 
 
@@ -379,19 +369,18 @@ def getshape(orderinf, ordersup):
     return ysh5
 
 
-
 if __name__ == "__main__":
     directory = '../'
     hrsfiles = assess_stability(directory)
     # f = 'R201510210012.fits'
-    f = hrsfiles['Flat'][1]
+    f = hrsfiles['Flat'][0]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
         parameters['data'] = parameters['data'][::-1, :]
     else:
-	print('Red detector')
-	#parameters['data'] = parameters['data'][::-1, :]<--------Not Sure what to put here. please advise
+        print('Red detector')
+        # parameters['data'] = parameters['data'][::-1, :]<--------Not Sure what to put here. please advise
     # tp = fits.open('H201704120017.fits')
     tp = 'H201704120017.fits'
     parameters['data'] = prepare_data(parameters, f, directory)
