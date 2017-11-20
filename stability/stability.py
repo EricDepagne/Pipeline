@@ -34,6 +34,7 @@ def classify_files(directory):
     science = []
 
     ffile = glob(directory + '*.fits')
+    ffile.sort()
     for f in ffile:
         with fits.open(f) as fh:
             try:
@@ -63,6 +64,7 @@ def find_peaks(parameters):
         if pixel > parameters[parameters['chip']]['XPix']:
             print(pixel)
             break
+#TODO : Older version of scipy output a list and not a numpy array. Test it.
         xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
 # The wavelet transform sometimes picks noise. Let's remove it now.
         # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
@@ -151,6 +153,8 @@ def gaussian_fit(a, k):
     #print(y1, y2)
     y = np.arange(y1, y2)
     gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
+    if k == 10:
+        print(gfit)
     return gfit
 
 
@@ -159,6 +163,7 @@ def add_gaussian(a):
     fit to the mean of the same fit.
     Returns the lower limit, the center and the upper limit.
     """
+    #print(a)
     return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
 
 
