@@ -55,17 +55,23 @@ def classify_files(directory):
 
 
 def find_peaks(parameters):
+    import numpy.ma as ma
     pixelstart = 50
     pixelstop = parameters['X2']
     step = 50
     xb = np.arange(pixelstart, pixelstop, step)
     temp = []
+    mask = parameters['data'] < 1.2*parameters[parameters['chip']]['BiasLevel']
+    maskeddata = ma.masked_array(parameters['data'], mask)
+    plt.imshow(maskeddata)
     for pixel in xb:
         if pixel > parameters[parameters['chip']]['XPix']:
             print(pixel)
             break
 # TODO : Older version of scipy output a list and not a numpy array. Test it.
-        xp = find_peaks_cwt(savgol_filter(parameters['data'][:, pixel], 11, 5), widths=np.arange(1, 20))
+        xp = find_peaks_cwt(savgol_filter(maskeddata[:, pixel], 31, 5), widths=np.arange(1, 20))
+        if pixel == 3050:
+            print(xp, pixel)
 # The wavelet transform sometimes picks noise. Let's remove it now.
         # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
         # print(m)
@@ -144,7 +150,10 @@ def gaussian_fit(a, k):
     y1 = a - 25
     y2 = a + 25
     y = np.arange(y1, y2)
-    gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
+    try:
+        gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
+    except IndexError:
+        return
     return gfit
 
 
@@ -153,7 +162,10 @@ def add_gaussian(a):
     fit to the mean of the same fit.
     Returns the lower limit, the center and the upper limit.
     """
-    return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
+    try:
+        return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
+    except AttributeError:
+        return(np.nan, np.nan, np.nan)
 
 
 def find_orders(op):
@@ -181,14 +193,18 @@ def extract_orders(positions, data):
 
     # data = parameters['data']
     orders = np.zeros((positions.shape[0], data.shape[1]))
-    nborder = orders.shape[1]
-    print(nborder)
-    x = [i for i in range(nborder)]
+    npixels = orders.shape[1]
+    print(npixels)
+    x = [i for i in range(npixels)]
     for o in range(2, orders.shape[0]):
+        print('ordre : ', o)
         X = [50 * (i + 1) for i in range(positions[o, :, 0].shape[0])]
-        foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
-        fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
-        orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
+        try:
+            foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
+            fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
+            orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
+        except ValueError:
+            continue
         # orderwidth = 30
         for i in x:
             orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
@@ -329,7 +345,6 @@ def wavelength(extracted_data, pyhrs_data, star):
         a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
         ax1.plot(a['Wavelength'], a['Flux']*1)
         line = 2*(int(o)-parameters[parameters['chip']]['OrderShift'])
-        print(line)
         ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
         dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
     if 'HBDET' in parameters['chip']:
@@ -373,7 +388,7 @@ if __name__ == "__main__":
     directory = '../'
     hrsfiles = assess_stability(directory)
     # f = 'R201510210012.fits'
-    f = hrsfiles['Flat'][0]
+    f = hrsfiles['Flat'][1]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
