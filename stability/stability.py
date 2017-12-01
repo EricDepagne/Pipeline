@@ -197,15 +197,16 @@ def extract_orders(positions, data):
     print(npixels)
     x = [i for i in range(npixels)]
     for o in range(2, orders.shape[0]):
-        print('ordre : ', o)
+        print('Extracting order : ', o)
         X = [50 * (i + 1) for i in range(positions[o, :, 0].shape[0])]
         try:
             foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
             fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
             orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
+            print("Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
         except ValueError:
             continue
-        # orderwidth = 30
+        orderwidth = 30
         for i in x:
             orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
 # TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
@@ -342,6 +343,7 @@ def wavelength(extracted_data, pyhrs_data, star):
     ax2 = ax1.twinx()
 
     for o in list_orders:
+        print('Ordre :', o)
         a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
         ax1.plot(a['Wavelength'], a['Flux']*1)
         line = 2*(int(o)-parameters[parameters['chip']]['OrderShift'])
@@ -384,11 +386,13 @@ def getshape(orderinf, ordersup):
     return ysh5
 
 
-if __name__ == "__main__":
+
+    hrsfile = '../pH201706120024_obj.fits'
+    hrs = HRS(hrsfile=hrsfile)
     directory = '../'
     hrsfiles = assess_stability(directory)
     # f = 'R201510210012.fits'
-    f = hrsfiles['Flat'][1]
+    f = hrsfiles['Flat'][0]
     parameters = set_parameters(f)
     if 'HBD'in parameters['chip']:
         print('Blue detector')
