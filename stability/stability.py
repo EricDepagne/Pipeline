@@ -4,6 +4,8 @@
 # sys imports
 
 # python imports
+from pathlib import Path
+import configparser
 from glob import glob
 
 # numpy imports
@@ -386,8 +388,48 @@ def getshape(orderinf, ordersup):
     return ysh5
 
 
+class Reduced(object):
+    pass
 
-    hrsfile = '../pH201706120024_obj.fits'
+
+class HRS(object):
+    """
+    Class that allows to set the parameters of each files
+    the data attribute is such that all frames have the same orientation
+    """
+    def __init__(self,
+                 hrsfile=''):
+        self.file = hrsfile
+        self.hdulist = fits.open(self.file)
+        self.header = self.hdulist[0].header
+        self.dataX1 = int(self.header['DATASEC'][1:8].split(':')[0])
+        self.dataX2 = int(self.header['DATASEC'][1:8].split(':')[1])
+        self.dataY1 = int(self.header['DATASEC'][9:15].split(':')[0])
+        self.dataY2 = int(self.header['DATASEC'][9:15].split(':')[1])
+        self.mode = self.header['OBSMODE']
+        self.name = self.header['OBJECT']
+        self.chip = self.header['DETNAM']
+        self.data = self.prepare_data(self.file)
+        (self.datamin, self.datamax) = ZScaleInterval().get_limits(self.data)
+
+    def prepare_data(self, hrsfile):
+        """
+        This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
+        """
+        d = self.hdulist[0].data
+        if self.chip == 'HRDET':
+            d = d
+        else:
+            d = d[::-1, :]
+#
+        return d
+
+    pass
+
+
+if __name__ == "__main__":
+    # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
+    hrsfile = '../H201706120024.fits'
     hrs = HRS(hrsfile=hrsfile)
     directory = '../'
     hrsfiles = assess_stability(directory)
