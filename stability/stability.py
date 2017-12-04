@@ -56,18 +56,23 @@ def classify_files(directory):
     return files
 
 
-def find_peaks(parameters):
+def find_peaks(frame):
+    """
+    Identifies in a Flat-Field frame where the orders are located
+    The procedure is as follows:
+    1 -
+    """
     import numpy.ma as ma
     pixelstart = 50
-    pixelstop = parameters['X2']
+    pixelstop = frame.dataX2
     step = 50
     xb = np.arange(pixelstart, pixelstop, step)
     temp = []
-    mask = parameters['data'] < 1.2*parameters[parameters['chip']]['BiasLevel']
-    maskeddata = ma.masked_array(parameters['data'], mask)
+    mask = frame.data < 1.2*frame.biaslevel
+    maskeddata = ma.masked_array(frame.data, mask)
     plt.imshow(maskeddata)
     for pixel in xb:
-        if pixel > parameters[parameters['chip']]['XPix']:
+        if pixel > frame.xpix:
             print(pixel)
             break
 # TODO : Older version of scipy output a list and not a numpy array. Test it.
@@ -410,21 +415,75 @@ class HRS(object):
         self.name = self.header['OBJECT']
         self.chip = self.header['DETNAM']
         self.data = self.prepare_data(self.file)
-        (self.datamin, self.datamax) = ZScaleInterval().get_limits(self.data)
+        self.shape = self.data.shape
+        self.substractedbias = False
+        (self.dataminzs, self.datamaxzs) = ZScaleInterval().get_limits(self.data)
+        parameters = {'HBDET': {'OrderShift': 83,
+                                'XPix': 2048,
+                                'BiasLevel': 690},
+                      'HRDET': {'OrderShift': 53,
+                                'XPix': 4096,
+                                'BiasLevel': 920}}
+        self.biaslevel = parameters[self.chip]['BiasLevel']
+        self.ordershift = parameters[self.chip]['OrderShift']
+        self.xpix = parameters[self.chip]['XPix']
+
+    def __add__(self, other):
+        """
+        Defining what it is to add two HRS objects
+        """
+        import copy
+        new = copy.copy(self)
+
+        if isinstance(other, HRS):
+            new.data = self.data + other.data
+        elif isinstance(other, np.int):
+            new.data = self.data + other
+        elif isinstance(other, np.float):
+            new.data = self.data + other
+        else:
+            return NotImplemented
+        (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        return new
+
+    def __sub__(self, other):
+        """
+        Defining what substracting two HRS object is.
+        It is not possible to substract twice a bias frame.
+
+        """
+        import copy
+        new = copy.copy(self)
+        print(new.name)
+
+        if not isinstance(other, HRS):
+            if isinstance(other, np.int) or isinstance(other, np.float):
+                new.data = self.data - other
+            else:
+                return NotImplemented
+        elif not self.substractedbias and 'Bias' in other.name:
+            print('Bias not substracted, and other is a bias')
+            new.data = self.data - other.data
+        else:
+            print('Bias already substracted')
+        new.substractedbias = True
+# updating the datamin and datamax attributes after the substraction.
+        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+
+        return new
 
     def prepare_data(self, hrsfile):
         """
         This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
         """
         d = self.hdulist[0].data
+        print(d)
         if self.chip == 'HRDET':
             d = d
         else:
             d = d[::-1, :]
 #
         return d
-
-    pass
 
 
 if __name__ == "__main__":
