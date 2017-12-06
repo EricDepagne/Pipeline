@@ -393,8 +393,126 @@ def getshape(orderinf, ordersup):
     return ysh5
 
 
-class Reduced(object):
-    pass
+class Order(object):
+    """
+    Creates an object that defines the position of the orders.
+    """
+    def __init__(self,
+                 hrs=''):
+        self.hrs = hrs
+        self.got_flat = self.check_type(self.hrs)
+        self.orderguess = self.find_peaks(self.hrs)
+        self.order = self.identify_orders(self.orderguess)
+        self.extracted, self.order_fit = self.find_orders(self.order)
+
+    def check_type(self, frame):
+        if 'Flat field' not in frame.name:
+            return False
+        return True
+
+    def find_peaks(self, frame):
+        """
+        Identifies in a Flat-Field frame where the orders are located
+        The procedure is as follows:
+        1 -
+        """
+        if not self.got_flat:
+            print("Not a flat, can't determine the position of the orders")
+            return None
+        else:
+            pixelstart = 50
+            pixelstop = frame.dataX2
+            step = 50
+            xb = np.arange(pixelstart, pixelstop, step)
+            temp = []
+            for pixel in xb:
+                if pixel > frame.xpix:
+                    print(pixel)
+                    break
+# TODO : Older version of scipy output a list and not a numpy array. Test it.
+                xp = find_peaks_cwt(savgol_filter(frame.data[:, pixel], 31, 5), widths=np.arange(1, 20))
+                if pixel == 3050:
+                    print(xp, pixel)
+            #    plt.scatter(pixel * np.ones(len(xp)), xp, s=30)
+                temp.append(xp)
+            # Storing the location of the peaks in a numpy array
+            size = max([len(i) for i in temp])
+            peaks = np.ones((size, len(temp)), dtype=np.int)
+            for index in range(len(temp)):
+                temp[index].resize(size, refcheck=False)
+                peaks[:, index] = temp[index]
+
+            return peaks
+
+    def identify_orders(self, pts):
+        """
+        This function extracts the real location of the orders
+        The input parameter is a numpy array containing the probable location of the orders. It has been filtered to remove the false detection of the algorithm.
+
+        """
+        o = np.zeros_like(pts)
+        # Detection of the first order shifts.
+        gr = np.where(np.gradient(pts[0]) > np.gradient(pts[0]).std())[0]
+        p = gr[1::2]
+
+        print('changement à', p, len(p))
+# The indices will allow us to know when to switch row in order to follow the orders.
+# The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
+        indices = [0] + list(p) + [pts.shape[1]]
+        print('indices : ', indices)
+        for i in range(73):
+            # The orders come in three section, so we coalesce them
+            print('indice', i)
+            ind = np.arange(i, i - (len(p) + 1), -1) + 1
+            ind[np.where(ind <= 0)] = 0
+            a = ind > 0
+            a = a * 1
+            for j in range(len(a)):
+                print('j:', j)
+                print(indices[j] * 50, indices[j + 1] * 50)
+                arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
+                o[i, indices[j]:indices[j + 1]] = arr1
+        return o
+
+# Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize une fois qu'on a défini des fonctions qui vont faire un calcul sur un élément des tableaux. C'est dans find_orders, vgf et vadd.
+    def _gaussian_fit(self, a, k):
+        from astropy.modeling import fitting, models
+        fitter = fitting.SLSQPLSQFitter()
+        gaus = models.Gaussian1D(amplitude=1., mean=a, stddev=5.)
+        # print(gaus)
+        # print(a, k)
+        y1 = a - 25
+        y2 = a + 25
+        y = np.arange(y1, y2)
+        try:
+            gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
+        except IndexError:
+            return
+        return gfit
+
+    def _add_gaussian(self, a):
+        """ Computes the size of the orders by adding/substracting 2.7 times the standard dev of the gaussian
+        fit to the mean of the same fit.
+        Returns the lower limit, the center and the upper limit.
+        """
+        try:
+            return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
+        except AttributeError:
+            return(np.nan, np.nan, np.nan)
+
+    def find_orders(self, op):
+        """ Computes the location of the orders
+        Returns a 3D numpy array
+        """
+        vgf = np.vectorize(self._gaussian_fit)
+        vadd = np.vectorize(self._add_gaussian)
+        fit = np.zeros_like(op, dtype=object)
+        positions = np.zeros((op.shape[0], op.shape[1], 3))
+        for i in range(op.shape[1]):
+            tt = vgf(op[:, i], i)
+            fit[:, i] = tt
+        positions[:, :, 0], positions[:, :, 1], positions[:, :, 2] = vadd(fit)
+        return positions, fit
 
 
 class HRS(object):
@@ -416,7 +534,6 @@ class HRS(object):
         self.chip = self.header['DETNAM']
         self.data = self.prepare_data(self.file)
         self.shape = self.data.shape
-        self.substractedbias = False
         (self.dataminzs, self.datamaxzs) = ZScaleInterval().get_limits(self.data)
         parameters = {'HBDET': {'OrderShift': 83,
                                 'XPix': 2048,
@@ -427,6 +544,13 @@ class HRS(object):
         self.biaslevel = parameters[self.chip]['BiasLevel']
         self.ordershift = parameters[self.chip]['OrderShift']
         self.xpix = parameters[self.chip]['XPix']
+
+    def __repr__(self):
+        color = 'blue'
+        if 'HR' in self.chip:
+            color = 'red'
+        description = 'HRS {color} Frame\nSize : {x}x{y}, Object : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
+        return description
 
     def __add__(self, other):
         """
@@ -449,24 +573,18 @@ class HRS(object):
     def __sub__(self, other):
         """
         Defining what substracting two HRS object is.
-        It is not possible to substract twice a bias frame.
 
         """
         import copy
         new = copy.copy(self)
-        print(new.name)
 
         if not isinstance(other, HRS):
             if isinstance(other, np.int) or isinstance(other, np.float):
                 new.data = self.data - other
             else:
                 return NotImplemented
-        elif not self.substractedbias and 'Bias' in other.name:
-            print('Bias not substracted, and other is a bias')
-            new.data = self.data - other.data
         else:
-            print('Bias already substracted')
-        new.substractedbias = True
+            new.data = self.data - other.data
 # updating the datamin and datamax attributes after the substraction.
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
 
@@ -477,7 +595,6 @@ class HRS(object):
         This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
         """
         d = self.hdulist[0].data
-        print(d)
         if self.chip == 'HRDET':
             d = d
         else:
