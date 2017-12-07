@@ -56,46 +56,6 @@ def classify_files(directory):
     return files
 
 
-def find_peaks(frame):
-    """
-    Identifies in a Flat-Field frame where the orders are located
-    The procedure is as follows:
-    1 -
-    """
-    import numpy.ma as ma
-    pixelstart = 50
-    pixelstop = frame.dataX2
-    step = 50
-    xb = np.arange(pixelstart, pixelstop, step)
-    temp = []
-    mask = frame.data < 1.2*frame.biaslevel
-    maskeddata = ma.masked_array(frame.data, mask)
-    plt.imshow(maskeddata)
-    for pixel in xb:
-        if pixel > frame.xpix:
-            print(pixel)
-            break
-# TODO : Older version of scipy output a list and not a numpy array. Test it.
-        xp = find_peaks_cwt(savgol_filter(maskeddata[:, pixel], 31, 5), widths=np.arange(1, 20))
-        if pixel == 3050:
-            print(xp, pixel)
-# The wavelet transform sometimes picks noise. Let's remove it now.
-        # m = np.isclose(parameters['data'][:, pixel][xp], np.zeros_like(parameters['data'][:, pixel][xp]), atol=20)
-        # print(m)
-        # xxp = xp[np.invert(m)]
-        plt.scatter(pixel * np.ones(len(xp)), xp, s=30)
-        temp.append(xp)
-    # Storing the location of the peaks in a numpy array
-    size = max([len(i) for i in temp])
-    peaks = np.ones((size, len(temp)), dtype=np.int)
-    for index in range(len(temp)):
-        temp[index].resize(size, refcheck=False)
-        peaks[:, index] = temp[index]
-# We need to remove the zeros.
-
-    return peaks
-
-
 def match_orders(sci_data):
 
         # get wavelength calibration files
@@ -116,78 +76,7 @@ def match_orders(sci_data):
         return temp
 
 
-def identify_orders(pts):
-    """
-    This function extracts the real location of the orders
-    The input parameter is a numpy array containing the probable location of the orders. It has been filtered to remove the false detection of the algorithm.
-
-    """
-    o = np.zeros_like(pts)
-    # Detection of the first order shifts.
-    gr = np.where(np.gradient(pts[0]) > np.gradient(pts[0]).std())[0]
-    p = gr[1::2]
-
-    print('changement à', p, len(p))
-# The indices will allow us to know when to switch row in order to follow the orders.
-# The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
-    indices = [0] + list(p) + [pts.shape[1]]
-    print('indices : ', indices)
-    for i in range(73):
-        # The orders come in three section, so we coalesce them
-        print('indice', i)
-        ind = np.arange(i, i - (len(p) + 1), -1) + 1
-        ind[np.where(ind <= 0)] = 0
-        a = ind > 0
-        a = a * 1
-        for j in range(len(a)):
-            print('j:', j)
-            print(indices[j] * 50, indices[j + 1] * 50)
-            arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
-            o[i, indices[j]:indices[j + 1]] = arr1
-    return o
-
-
 # Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize une fois qu'on a défini des fonctions qui vont faire un calcul sur un élément des tableaux. C'est dans find_orders, vgf et vadd.
-def gaussian_fit(a, k):
-    from astropy.modeling import fitting, models
-    fitter = fitting.SLSQPLSQFitter()
-    gaus = models.Gaussian1D(amplitude=1., mean=a, stddev=5.)
-    # print(gaus)
-    # print(a, k)
-    y1 = a - 25
-    y2 = a + 25
-    y = np.arange(y1, y2)
-    try:
-        gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
-    except IndexError:
-        return
-    return gfit
-
-
-def add_gaussian(a):
-    """ Computes the size of the orders by adding/substracting 2.7 times the standard dev of the gaussian
-    fit to the mean of the same fit.
-    Returns the lower limit, the center and the upper limit.
-    """
-    try:
-        return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
-    except AttributeError:
-        return(np.nan, np.nan, np.nan)
-
-
-def find_orders(op):
-    """ Computes the location of the orders
-    Returns a 3D numpy array
-    """
-    vgf = np.vectorize(gaussian_fit)
-    vadd = np.vectorize(add_gaussian)
-    fit = np.zeros_like(op, dtype=object)
-    positions = np.zeros((op.shape[0], op.shape[1], 3))
-    for i in range(op.shape[1]):
-        tt = vgf(op[:, i], i)
-        fit[:, i] = tt
-    positions[:, :, 0], positions[:, :, 1], positions[:, :, 2] = vadd(fit)
-    return positions, fit
 
 
 def extract_orders(positions, data):
@@ -258,31 +147,6 @@ def set_parameters(arcfile):
         print('Blue detector')
         parameters['data'] = parameters['data'][::-1, :]
     return parameters
-
-
-def prepare_data(parameters, data, directory):
-    obs = fits.open(data)
-    if parameters['chip'] == 'HRDET':
-        bias = fits.open(directory + 'R201704150021.fits')
-        d = obs[0].data  # - bias[0].data
-    else:
-        bias = fits.open(directory + 'H201704150021.fits')
-        d = obs[0].data[::-1, :]  # - bias[0].data
-
-    dt = d[np.int(parameters['Y1']):np.int(parameters['Y2']), np.int(parameters['X1']):np.int(parameters['X2'])]  # - bias[0].data.mean()
-# We crudely remove the cosmics by moving all pixels in the highest bin of a 50-bin histogram to the second lowest.
-    hist, bins = np.histogram(dt, bins=50)
-    d = d - bias[0].data.mean()
-    if 'Flat' in parameters['ccdtype']:
-        print('Flatfield : removing cosmics')
-        d[np.where(dt >= bins[-2])] = bins[2]
-    else:
-        print('Not a flat, not doing anything')
-    d[np.where(dt >= bins[-2])] = bins[2]
-
-    # d[np.where(d<=0)] = 0
-
-    return d
 
 
 def plot_orders(data):
@@ -393,6 +257,10 @@ def getshape(orderinf, ordersup):
     return ysh5
 
 
+class Reduced(object):
+    pass
+
+
 class Order(object):
     """
     Creates an object that defines the position of the orders.
@@ -485,7 +353,7 @@ class Order(object):
         y2 = a + 25
         y = np.arange(y1, y2)
         try:
-            gfit = fitter(gaus, y, parameters['data'][y, 50 * (k + 1)] / parameters['data'][y, 50 * (k + 1)].max(), verblevel=0)
+            gfit = fitter(gaus, y, self.hrs.data[y, 50 * (k + 1)] / self.hrs.data[y, 50 * (k + 1)].max(), verblevel=0)
         except IndexError:
             return
         return gfit
@@ -605,21 +473,4 @@ class HRS(object):
 
 if __name__ == "__main__":
     # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
-    hrsfile = '../H201706120024.fits'
-    hrs = HRS(hrsfile=hrsfile)
-    directory = '../'
-    hrsfiles = assess_stability(directory)
-    # f = 'R201510210012.fits'
-    f = hrsfiles['Flat'][0]
-    parameters = set_parameters(f)
-    if 'HBD'in parameters['chip']:
-        print('Blue detector')
-        parameters['data'] = parameters['data'][::-1, :]
-    else:
-        print('Red detector')
-        # parameters['data'] = parameters['data'][::-1, :]<--------Not Sure what to put here. please advise
-    # tp = fits.open('H201704120017.fits')
-    tp = 'H201704120017.fits'
-    parameters['data'] = prepare_data(parameters, f, directory)
-    # parameters['order'] = fit_orders_pair(parameters['data'])
-    # wavelength(order)
+    print('HRS Data reduction pipeline')
