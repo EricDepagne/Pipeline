@@ -5,8 +5,7 @@
 
 # python imports
 from pathlib import Path
-import configparser
-from glob import glob
+import argparse
 
 # numpy imports
 import numpy as np
@@ -26,34 +25,6 @@ import matplotlib.pylab as plt
 
 # astropy imports
 from astropy.visualization import ZScaleInterval
-
-
-def classify_files(directory):
-    files = {}
-    thar = []
-    bias = []
-    flat = []
-    science = []
-
-    ffile = glob(directory + '*.fits')
-    ffile.sort()
-    for f in ffile:
-        with fits.open(f) as fh:
-            try:
-                h = fh[0].header['PROPID']
-            except KeyError:
-                print('no propid, probably not a SALT FITS file.')
-                continue
-            if 'STABLE' in h:
-                thar.append(f)
-            if 'CAL_FLAT' in h:
-                flat.append(f)
-            if 'BIAS' in h:
-                bias.append(f)
-            if 'SCI' in h or 'MLT' in h or 'LSP' in h:
-                science.append(f)
-    files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
-    return files
 
 
 def match_orders(sci_data):
@@ -108,12 +79,6 @@ def extract_orders(positions, data):
 # TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
 # Normaliser au nombre de pixels, peut-être.
     return orders
-
-
-def assess_stability(directory):
-    arclist = classify_files(directory)
-    # print(arclist)
-    return arclist
 
 
 def set_parameters(arcfile):
@@ -255,10 +220,6 @@ def getshape(orderinf, ordersup):
     ysh5 = np.poly1d(np.polyfit(x, ysh4, 11))(x)
     # ysh5 fits now the shape of the ThAr order quite well, and we can start from there to identify the lines.
     return ysh5
-
-
-class Reduced(object):
-    pass
 
 
 class Order(object):
@@ -471,6 +432,55 @@ class HRS(object):
         return d
 
 
+class Reduced(object):
+    pass
+
+
+class ListOfFiles(object):
+    """
+    List all the  HRS raw files in the directory
+    Returns the description of the files
+    """
+    def __init__(self, datadir):
+        self.path = datadir
+        self.fitsfiles = self.crawl(datadir)
+
+    def crawl(self, path=None):
+        files = {}
+        thar = []
+        bias = []
+        flat = []
+        science = []
+        path = path if path is not None else self.path
+        for item in path.glob('*.fits'):
+            if item.name.startswith('H') or item.name.startswith('R'):
+                print('File : {file}'.format(file=path / item.name))
+                with fits.open(path / item.name) as fh:
+                    try:
+                        h = fh[0].header['PROPID']
+                        t = fh[0].header['TIME-OBS']
+                        d = fh[0].header['DATE-OBS']
+                    except KeyError:
+                        print('no propid, probably not a SALT FITS file.')
+                        continue
+                    if 'STABLE' in h:
+                        thar.append(item.name)
+                    if 'CAL_FLAT' in h:
+                        flat.append(item.name)
+                    if 'BIAS' in h:
+                        bias.append(item.name)
+                    if 'SCI' in h or 'MLT' in h or 'LSP' in h:
+                        science.append(item.name)
+                files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
+        return files
+
+
 if __name__ == "__main__":
     # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
-    print('HRS Data reduction pipeline')
+    parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
+    parser.add_argument('-d',
+                        '--directory',
+                        help='Directory where the data to be reduced are',
+                        default='.')
+    args = parser.parse_args()
+    datadir = Path(args.directory)
