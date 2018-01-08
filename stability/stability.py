@@ -81,92 +81,6 @@ def extract_orders(positions, data):
     return orders
 
 
-def set_parameters(arcfile):
-    print('extracting information from file {arcfile}'.format(arcfile=arcfile))
-    ff = fits.open(arcfile)
-    parameters = {'HBDET': {'Level': 15,
-                            'Distance': 30,
-                            'OrderShift': 83,
-                            'XPix': 2048,
-                            'BiasLevel': 690},
-                  'HRDET': {'Level': 15,
-                            'Distance': 40,
-                            'OrderShift': 53,
-                            'XPix': 4096,
-                            'BiasLevel': 920},
-                  'X': ff[0].header['NAXIS1'],
-                  'Y': ff[0].header['NAXIS2'],
-                  'center': int(ff[0].header['NAXIS1'] / 2),
-                  'chip': ff[0].header['DETNAM'],
-                  'data': ff[0].data,
-                  'mode': ff[0].header['OBSMODE'],
-                  'name': ff[0].header['OBJECT'],
-                  'X1': int(ff[0].header['DATASEC'][1:8].split(':')[0]),
-                  'X2': int(ff[0].header['DATASEC'][1:8].split(':')[1]),
-                  'Y1': int(ff[0].header['DATASEC'][9:15].split(':')[0]),
-                  'Y2': int(ff[0].header['DATASEC'][9:15].split(':')[1]),
-                  'nbpixperstep': 11,
-                  'ccdtype': ff[0].header['CCDTYPE']}
-    parameters['data'] = parameters['data'][:, parameters['X1']-1:parameters['X2']]
-    if 'HBD'in parameters['chip']:
-        print('Blue detector')
-        parameters['data'] = parameters['data'][::-1, :]
-    return parameters
-
-
-def plot_orders(data):
-    orderframe = data['data']
-    orderpositions = data['order']
-    (vmin, vmax) = ZScaleInterval().get_limits(orderframe)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    for o in orderpositions.keys():
-        print('Plotting order {o}'.format(o=o))
-        if 'X' in o:
-            continue
-        ysky = []
-        yscience = []
-        x = []
-        if 'X' in o:
-            continue
-        # for i in range(len(orderpositions[o]['fit'])):
-        for pixel in range(orderframe.shape[1]):
-
-            if pixel < orderpositions['X'][0]:
-                continue
-            try:
-                i = orderpositions['X'].index(pixel)
-                keepi = i
-            except ValueError:
-                i = keepi
-            if i > len(orderpositions[o]['fit']) - 1:
-                continue
-            x.append(pixel)
-            # We append the center of the order, the lower and the upper limits to ysky and yscience.
-
-            ysky.append(orderpositions[o]['yscience'](pixel))
-            ysky.append(orderpositions[o]['yscience'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_1)
-            ysky.append(orderpositions[o]['yscience'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_1)
-            yscience.append(orderpositions[o]['ysky'](pixel))
-            yscience.append(orderpositions[o]['ysky'](pixel) - 2.5 * orderpositions[o]['fit'][i].stddev_0)
-            yscience.append(orderpositions[o]['ysky'](pixel) + 2.5 * orderpositions[o]['fit'][i].stddev_0)
-        xlabelleft = 0.25 * (x[-1] + x[0])
-        xlabelcentre = 0.5 * (x[-1] + x[0])
-        xlabelright = 0.75 * (x[-1] + x[0])
-        ylabelleft = orderpositions[o]['yscience'](xlabelleft)
-        ylabelcentre = orderpositions[o]['yscience'](xlabelcentre)
-        ylabelright = orderpositions[o]['yscience'](xlabelright)
-        ax.annotate(o, xy=(xlabelleft, ylabelleft), color='peachpuff')
-        ax.annotate(o, xy=(xlabelcentre, ylabelcentre), color='turquoise')
-        ax.annotate(o, xy=(xlabelright, ylabelright), color='orange')
-        # print(x, y1)
-        # plt.plot(x, y1c, 'blue')  # , x, y1b, 'blue', x, y1t, 'blue')
-        ax.plot(x, ysky[::3], 'green', x, ysky[1::3], 'blue', x, ysky[2::3], 'blue')
-        ax.plot(x, yscience[::3], 'green', x, yscience[1::3], 'red', x, yscience[2::3], 'red')
-    ax.imshow(orderframe, vmin=vmin, vmax=vmax)
-
-
 def wavelength(extracted_data, pyhrs_data, star):
     '''
     In order to get the wavelength solution, we will merge the wavelength solution
@@ -229,6 +143,8 @@ class Order(object):
     def __init__(self,
                  hrs=''):
         self.hrs = hrs
+        import scipy as sp
+        self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
         self.orderguess = self.find_peaks(self.hrs)
         self.order = self.identify_orders(self.orderguess)
@@ -245,6 +161,8 @@ class Order(object):
         The procedure is as follows:
         1 -
         """
+        print(self.spversion)
+        splitscipyversion = self.spversion.split('.')
         if not self.got_flat:
             print("Not a flat, can't determine the position of the orders")
             return None
@@ -258,11 +176,16 @@ class Order(object):
                 if pixel > frame.xpix:
                     print(pixel)
                     break
-# TODO : Older version of scipy output a list and not a numpy array. Test it.
                 xp = find_peaks_cwt(savgol_filter(frame.data[:, pixel], 31, 5), widths=np.arange(1, 20))
                 if pixel == 3050:
                     print(xp, pixel)
-            #    plt.scatter(pixel * np.ones(len(xp)), xp, s=30)
+# TODO : Older version of scipy output a list and not a numpy array. Test it. Change occurred in version 0.19
+                if splitscipyversion[0] == '0' and np.int(splitscipyversion[1]) < 19:
+                    print('old version : {version}'.format(version = self.spversion))
+                    xp = np.array(xp)
+                else:
+                    print('new version: {version}'.format(version = self.spversion))
+                    print('all good')
                 temp.append(xp)
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
@@ -380,7 +303,7 @@ class HRS(object):
         color = 'blue'
         if 'HR' in self.chip:
             color = 'red'
-        description = 'HRS {color} Frame\nSize : {x}x{y}, Object : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
+        description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
         return description
 
     def __add__(self, other):
