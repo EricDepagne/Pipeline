@@ -373,6 +373,8 @@ class HRS(object):
         self.biaslevel = parameters[self.chip]['BiasLevel']
         self.ordershift = parameters[self.chip]['OrderShift']
         self.xpix = parameters[self.chip]['XPix']
+        self.mean = self.data.mean()
+        self.std = self.data.std()
 
     def __repr__(self):
         color = 'blue'
@@ -443,10 +445,14 @@ class ListOfFiles(object):
     """
     def __init__(self, datadir):
         self.path = datadir
-        self.fitsfiles = self.crawl(datadir)
+        self.crawl()
 
     def crawl(self, path=None):
-        files = {}
+        """
+        Function that goes through the files in datadir
+        and sets the attributes of the ListOfFiles to the proper value:
+        self.thar is the list of ThAr files, self.science is the list of science files, aso.
+        """
         thar = []
         bias = []
         flat = []
@@ -454,25 +460,34 @@ class ListOfFiles(object):
         path = path if path is not None else self.path
         for item in path.glob('*.fits'):
             if item.name.startswith('H') or item.name.startswith('R'):
-                print('File : {file}'.format(file=path / item.name))
+                # print('File : {file}'.format(file=path / item.name))
                 with fits.open(path / item.name) as fh:
                     try:
                         h = fh[0].header['PROPID']
                         t = fh[0].header['TIME-OBS']
                         d = fh[0].header['DATE-OBS']
                     except KeyError:
-                        print('no propid, probably not a SALT FITS file.')
+                        #print('no propid, probably not a SALT FITS file.')
                         continue
                     if 'STABLE' in h:
-                        thar.append(item.name)
+                        thar.append(self.path / item.name)
                     if 'CAL_FLAT' in h:
-                        flat.append(item.name)
+                        flat.append(self.path / item.name)
                     if 'BIAS' in h:
-                        bias.append(item.name)
+                        bias.append(self.path / item.name)
                     if 'SCI' in h or 'MLT' in h or 'LSP' in h:
-                        science.append(item.name)
-                files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
-        return files
+                        science.append(self.path / item.name)
+        # files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
+# We sort the lists to avoid any side effects
+        science.sort()
+        bias.sort()
+        flat.sort()
+        thar.sort()
+
+        self.science = science
+        self.bias = bias
+        self.thar = thar
+        self.flat = flat
 
 
 if __name__ == "__main__":
