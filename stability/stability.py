@@ -379,8 +379,10 @@ class Reduced(object):
                  orderposition='',
                  hrsscience=''):
         self.orderposition = orderposition
-        self.data = hrsscience.data
-        self.orders = self._extract_orders(self.orderposition.extracted, self.data)
+        self.hrsfile = hrsscience
+        self.orders = self._extract_orders(self.orderposition.extracted, self.hrsfile.data)
+        print(self.hrsfile.file.name)
+        self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
 
     def _extract_orders(self, positions, data):
         """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
@@ -393,7 +395,6 @@ class Reduced(object):
         # data = parameters['data']
         orders = np.zeros((positions.shape[0], data.shape[1]))
         npixels = orders.shape[1]
-        print(npixels)
         x = [i for i in range(npixels)]
         for o in range(2, orders.shape[0]):
             print('Extracting order : ', o)
@@ -411,6 +412,40 @@ class Reduced(object):
 # TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
 # Normaliser au nombre de pixels, peut-être.
         return orders
+
+    def _wavelength(self, extracted_data):  #, pyhrs_data, star):
+        '''
+        In order to get the wavelength solution, we will merge the wavelength solution
+        obtained from the pyhrs reduced spectra, with our extracted data
+        This is a temporary solution until we have a working wavelength solution.
+        '''
+        print(self.hrsfile.file.name)
+        pyhrsfile = 'p' + self.hrsfile.file.stem + '_obj' + self.hrsfile.file.suffix
+        pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
+        list_orders = np.unique(pyhrs_data[1].data['Order'])
+        dex = pd.DataFrame()
+        fig, ax1 = plt.subplots()
+        ax2 = ax1.twinx()
+
+        for o in list_orders:
+            print('Ordre :', o)
+            a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
+            ax1.plot(a['Wavelength'], a['Flux']*1)
+            line = 2*(int(o) - self.hrsfile.ordershift)  #parameters[parameters['chip']]['OrderShift'])
+            ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
+            dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
+        if 'HBDET' in self.hrsfile.chip:
+            ext = 'B'
+        else:
+            ext = 'R'
+        name = star + '_' + ext + '.csv.gz'
+        print(name)
+        dex.to_csv(name, compression='gzip')
+# Removing the duplicate indices from the append()
+        dex = dex.reset_index()
+# Reordering the columns
+        dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
+        return dex
 
 
 class ListOfFiles(object):
