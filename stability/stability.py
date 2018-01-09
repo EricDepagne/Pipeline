@@ -349,11 +349,13 @@ class HRS(object):
         This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
         """
         d = self.hdulist[0].data
+        print(self.dataX1, self.dataX2)
         if self.chip == 'HRDET':
-            d = d
+            d = d[:,self.dataX1-1:self.dataX2]
         else:
-            d = d[::-1, :]
+            d = d[::-1, self.dataX1-1:self.dataX2]
 #
+        print(d.shape)
         return d
 
 
@@ -381,7 +383,6 @@ class Reduced(object):
         self.orderposition = orderposition
         self.hrsfile = hrsscience
         self.orders = self._extract_orders(self.orderposition.extracted, self.hrsfile.data)
-        print(self.hrsfile.file.name)
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
 
     def _extract_orders(self, positions, data):
@@ -395,6 +396,7 @@ class Reduced(object):
         # data = parameters['data']
         orders = np.zeros((positions.shape[0], data.shape[1]))
         npixels = orders.shape[1]
+        print(orders.shape)
         x = [i for i in range(npixels)]
         for o in range(2, orders.shape[0]):
             print('Extracting order : ', o)
@@ -430,15 +432,17 @@ class Reduced(object):
         for o in list_orders:
             print('Ordre :', o)
             a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
+            print(a.shape)
+            print(extracted_data.shape)
             ax1.plot(a['Wavelength'], a['Flux']*1)
             line = 2*(int(o) - self.hrsfile.ordershift)  #parameters[parameters['chip']]['OrderShift'])
-            ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
+            ax2.plot(a['Wavelength'], -extracted_data[line]+extracted_data[line-1])  # Correction du ciel en meme temps.
             dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
         else:
             ext = 'R'
-        name = star + '_' + ext + '.csv.gz'
+        name = self.hrsfile.name + '_' + ext + '.csv.gz'
         print(name)
         dex.to_csv(name, compression='gzip')
 # Removing the duplicate indices from the append()
