@@ -181,10 +181,10 @@ class Order(object):
                     print(xp, pixel)
 # TODO : Older version of scipy output a list and not a numpy array. Test it. Change occurred in version 0.19
                 if splitscipyversion[0] == '0' and np.int(splitscipyversion[1]) < 19:
-                    print('old version : {version}'.format(version = self.spversion))
+                    print('old version : {version}'.format(version=self.spversion))
                     xp = np.array(xp)
                 else:
-                    print('new version: {version}'.format(version = self.spversion))
+                    print('new version: {version}'.format(version=self.spversion))
                     print('all good')
                 temp.append(xp)
             # Storing the location of the peaks in a numpy array
@@ -358,7 +358,59 @@ class HRS(object):
 
 
 class Reduced(object):
-    pass
+    """
+    With the location of the orders defined, we can now extract the orders from the science frame
+    and perform a wavelength calibration
+
+    Parameters:
+    -----------
+    orderposition : location of the orders.
+
+    sciencedata : HRS Science frame that will be extracted. FITS file.
+
+
+    Output:
+    -------
+
+    .orders : Numpy array containing the extracted orders
+    .worders : Numpy array containing the wavelength calibrated extracted orders
+    """
+    def __init__(self,
+                 orderposition='',
+                 hrsscience=''):
+        self.orderposition = orderposition
+        self.data = hrsscience.data
+        self.orders = self._extract_orders(self.orderposition.extracted, self.data)
+
+    def _extract_orders(self, positions, data):
+        """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
+        [:,:,0] est la limite inférieure
+        [:,:,1] le centre,
+        [:,:,2] la limite supérieure
+        """
+# TODO penser à mettre l'array en fortran, vu qu'on travaille par colonnes, ça ira plus vite.
+
+        # data = parameters['data']
+        orders = np.zeros((positions.shape[0], data.shape[1]))
+        npixels = orders.shape[1]
+        print(npixels)
+        x = [i for i in range(npixels)]
+        for o in range(2, orders.shape[0]):
+            print('Extracting order : ', o)
+            X = [50 * (i + 1) for i in range(positions[o, :, 0].shape[0])]
+            try:
+                foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
+                fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
+                orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
+                print("Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
+            except ValueError:
+                continue
+            orderwidth = 30
+            for i in x:
+                orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
+# TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
+# Normaliser au nombre de pixels, peut-être.
+        return orders
 
 
 class ListOfFiles(object):
@@ -414,6 +466,12 @@ class ListOfFiles(object):
 
 
 if __name__ == "__main__":
+    import astropy as ap
+    apv = ap.__version__.split('.')
+    if apv[0] == '1' and int(apv[1]) <= 4:
+        from sys import exit
+        print('You need to upgrade to a version of Astropy greater than 1.3.1')
+        exit()
     # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
     parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
     parser.add_argument('-d',
