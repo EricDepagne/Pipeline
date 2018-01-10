@@ -81,38 +81,6 @@ def extract_orders(positions, data):
     return orders
 
 
-def wavelength(extracted_data, pyhrs_data, star):
-    '''
-    In order to get the wavelength solution, we will merge the wavelength solution
-    obtained from the pyhrs reduced spectra, with our extracted data
-    This is a temporary solution until we have a working wavelength solution.
-    '''
-    list_orders = np.unique(pyhrs_data[1].data['Order'])
-    dex = pd.DataFrame()
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
-
-    for o in list_orders:
-        print('Ordre :', o)
-        a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
-        ax1.plot(a['Wavelength'], a['Flux']*1)
-        line = 2*(int(o)-parameters[parameters['chip']]['OrderShift'])
-        ax2.plot(a['Wavelength'], extracted_data[line]-extracted_data[line-1])  # Correction du ciel en meme temps.
-        dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
-    if 'HBDET' in parameters['chip']:
-        ext = 'B'
-    else:
-        ext = 'R'
-    name = star + '_' + ext + '.csv.gz'
-    print(name)
-    dex.to_csv(name, compression='gzip')
-# Removing the duplicate indices from the append()
-    dex = dex.reset_index()
-# Reordering the columns
-    dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
-    return dex
-
-
 def getshape(orderinf, ordersup):
     """
     In order to derive the shape of a given order, we use one order after and one order before
@@ -351,7 +319,7 @@ class HRS(object):
         d = self.hdulist[0].data
         print(self.dataX1, self.dataX2)
         if self.chip == 'HRDET':
-            d = d[:,self.dataX1-1:self.dataX2]
+            d = d[:, self.dataX1-1:self.dataX2]
         else:
             d = d[::-1, self.dataX1-1:self.dataX2]
 #
@@ -415,7 +383,7 @@ class Reduced(object):
 # Normaliser au nombre de pixels, peut-être.
         return orders
 
-    def _wavelength(self, extracted_data):  #, pyhrs_data, star):
+    def _wavelength(self, extracted_data):
         '''
         In order to get the wavelength solution, we will merge the wavelength solution
         obtained from the pyhrs reduced spectra, with our extracted data
@@ -435,7 +403,7 @@ class Reduced(object):
             print(a.shape)
             print(extracted_data.shape)
             ax1.plot(a['Wavelength'], a['Flux']*1)
-            line = 2*(int(o) - self.hrsfile.ordershift)  #parameters[parameters['chip']]['OrderShift'])
+            line = 2*(int(o) - self.hrsfile.ordershift)
             ax2.plot(a['Wavelength'], -extracted_data[line]+extracted_data[line-1])  # Correction du ciel en meme temps.
             dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
         if 'HBDET' in self.hrsfile.chip:
@@ -481,7 +449,7 @@ class ListOfFiles(object):
                         t = fh[0].header['TIME-OBS']
                         d = fh[0].header['DATE-OBS']
                     except KeyError:
-                        #print('no propid, probably not a SALT FITS file.')
+                        # no propid, probably not a SALT FITS file.
                         continue
                     if 'STABLE' in h:
                         thar.append(self.path / item.name)
