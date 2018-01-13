@@ -103,6 +103,48 @@ def getshape(orderinf, ordersup):
     return ysh5
 
 
+class FITS(object):
+
+    def __add__(self, other):
+        """
+        Defining what it is to add two HRS objects
+        """
+        import copy
+        new = copy.copy(self)
+
+        if isinstance(other, HRS):
+            new.data = self.data + other.data
+        elif isinstance(other, np.int):
+            new.data = self.data + other
+        elif isinstance(other, np.float):
+            new.data = self.data + other
+        else:
+            return NotImplemented
+        (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        return new
+
+    def __sub__(self, other):
+        """
+        Defining what substracting two HRS object is.
+
+        """
+        import copy
+        new = copy.copy(self)
+
+        if not isinstance(other, HRS):
+            if isinstance(other, np.int) or isinstance(other, np.float):
+                new.data = self.data - other
+            else:
+                return NotImplemented
+        else:
+            new.data = self.data - other.data
+# updating the datamin and datamax attributes after the substraction.
+        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+
+        return new
+
+
+
 class Order(object):
     """
     Creates an object that defines the position of the orders.
@@ -247,7 +289,7 @@ class Order(object):
         return positions, fit
 
 
-class HRS(object):
+class HRS(FITS):
     """
     Class that allows to set the parameters of each files
     the data attribute is such that all frames have the same orientation
@@ -286,43 +328,6 @@ class HRS(object):
         description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
         return description
 
-    def __add__(self, other):
-        """
-        Defining what it is to add two HRS objects
-        """
-        import copy
-        new = copy.copy(self)
-
-        if isinstance(other, HRS):
-            new.data = self.data + other.data
-        elif isinstance(other, np.int):
-            new.data = self.data + other
-        elif isinstance(other, np.float):
-            new.data = self.data + other
-        else:
-            return NotImplemented
-        (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
-        return new
-
-    def __sub__(self, other):
-        """
-        Defining what substracting two HRS object is.
-
-        """
-        import copy
-        new = copy.copy(self)
-
-        if not isinstance(other, HRS):
-            if isinstance(other, np.int) or isinstance(other, np.float):
-                new.data = self.data - other
-            else:
-                return NotImplemented
-        else:
-            new.data = self.data - other.data
-# updating the datamin and datamax attributes after the substraction.
-        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
-
-        return new
 
     def prepare_data(self, hrsfile):
         """
