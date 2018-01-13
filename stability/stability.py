@@ -144,7 +144,7 @@ class Order(object):
             temp = []
             for pixel in xb:
                 test = data[:, pixel]
-                b, c = np.histogram(test)
+                b, c = np.histogram(np.abs(test))
                 mask = test < c[1]/10
                 t = ma.array(test, mask=mask)
                 if pixel > frame.xpix:
@@ -177,13 +177,11 @@ class Order(object):
         """
         o = np.zeros_like(pts)
         # Detection of the first order shifts.
-        p = np.where((pts[2,1:] - pts[2,:-1]) > 10)[0]
-        print(p)
-
+        p = np.where((pts[2, 1:] - pts[2, :-1]) > 10)[0]
         print('changement à', p, len(p))
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
-        indices = [0] + list(p) + [pts.shape[1]]
+        indices = [0] + list(p+1) + [pts.shape[1]]
         print('\nindices : ', indices)
         for i in range(pts.shape[0]):
             # The orders come in three section, so we coalesce them
@@ -192,7 +190,6 @@ class Order(object):
             ind[np.where(ind <= 0)] = 0
             a = ind > 0
             a = a * 1
-            a 
             for j in range(len(a)):
                 # TODO FIXER CETTE PARTIE LA QUI NE MARCHE PAS ET QUI FOUT LE BORDEL
                 # LE COLLAGE DES ORDRES N'EST PAS CORRECT.
@@ -204,7 +201,8 @@ class Order(object):
                 print(indices[j] * 50, indices[j + 1] * 50)
                 print(indices[j], indices[j+1])
                 arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
-                print('arr1 :', arr1) 
+                print(pts[i-j])
+                print('arr1 :', arr1)
                 o[i, indices[j]:indices[j + 1]] = arr1
         return o
 
