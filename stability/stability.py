@@ -21,7 +21,6 @@ from scipy.signal import find_peaks_cwt
 import pandas as pd
 
 # matplotlib imports
-import matplotlib.pylab as plt
 
 # astropy imports
 from astropy.visualization import ZScaleInterval
@@ -129,32 +128,38 @@ class Order(object):
         The procedure is as follows:
         1 -
         """
+        import numpy.ma as ma
         print(self.spversion)
         splitscipyversion = self.spversion.split('.')
+# To avoid weird detection, we set any value below zero to zero.
+        data = frame.data.copy()
         if not self.got_flat:
             print("Not a flat, can't determine the position of the orders")
             return None
         else:
             pixelstart = 50
-            pixelstop = frame.dataX2
+            pixelstop = frame.data.shape[1]
             step = 50
             xb = np.arange(pixelstart, pixelstop, step)
             temp = []
             for pixel in xb:
+                test = data[:, pixel]
+                b, c = np.histogram(test)
+                mask = test < c[1]/10
+                t = ma.array(test, mask=mask)
                 if pixel > frame.xpix:
                     print(pixel)
                     break
-                xp = find_peaks_cwt(savgol_filter(frame.data[:, pixel], 31, 5), widths=np.arange(1, 20))
-                if pixel == 3050:
-                    print(xp, pixel)
+                xp = find_peaks_cwt(savgol_filter(t, 31, 5), widths=np.arange(1, 20))
 # TODO : Older version of scipy output a list and not a numpy array. Test it. Change occurred in version 0.19
                 if splitscipyversion[0] == '0' and np.int(splitscipyversion[1]) < 19:
-                    print('old version : {version}'.format(version=self.spversion))
                     xp = np.array(xp)
-                else:
-                    print('new version: {version}'.format(version=self.spversion))
-                    print('all good')
-                temp.append(xp)
+# We now extract the valid entries from the peaks_cwt()
+                x = xp[~t[xp].mask].copy()
+                # print(pixel, x)
+                if pixel == 3050:
+                    print(xp, pixel)
+                temp.append(x)
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
             peaks = np.ones((size, len(temp)), dtype=np.int)
@@ -172,25 +177,34 @@ class Order(object):
         """
         o = np.zeros_like(pts)
         # Detection of the first order shifts.
-        gr = np.where(np.gradient(pts[0]) > np.gradient(pts[0]).std())[0]
-        p = gr[1::2]
+        p = np.where((pts[2,1:] - pts[2,:-1]) > 10)[0]
+        print(p)
 
         print('changement à', p, len(p))
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
         indices = [0] + list(p) + [pts.shape[1]]
-        print('indices : ', indices)
-        for i in range(73):
+        print('\nindices : ', indices)
+        for i in range(pts.shape[0]):
             # The orders come in three section, so we coalesce them
             print('indice', i)
             ind = np.arange(i, i - (len(p) + 1), -1) + 1
             ind[np.where(ind <= 0)] = 0
             a = ind > 0
             a = a * 1
+            a 
             for j in range(len(a)):
+                # TODO FIXER CETTE PARTIE LA QUI NE MARCHE PAS ET QUI FOUT LE BORDEL
+                # LE COLLAGE DES ORDRES N'EST PAS CORRECT.
+
+                print('--------')
                 print('j:', j)
+                print('i-j:', i-j)
+                print('a[j]:', a[j])
                 print(indices[j] * 50, indices[j + 1] * 50)
+                print(indices[j], indices[j+1])
                 arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
+                print('arr1 :', arr1) 
                 o[i, indices[j]:indices[j + 1]] = arr1
         return o
 
@@ -317,13 +331,11 @@ class HRS(object):
         This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
         """
         d = self.hdulist[0].data
-        print(self.dataX1, self.dataX2)
         if self.chip == 'HRDET':
             d = d[:, self.dataX1-1:self.dataX2]
         else:
             d = d[::-1, self.dataX1-1:self.dataX2]
 #
-        print(d.shape)
         return d
 
 
@@ -394,17 +406,17 @@ class Reduced(object):
         pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
         list_orders = np.unique(pyhrs_data[1].data['Order'])
         dex = pd.DataFrame()
-        fig, ax1 = plt.subplots()
-        ax2 = ax1.twinx()
+        # fig, ax1 = plt.subplots()
+        # ax2 = ax1.twinx()
 
         for o in list_orders:
             print('Ordre :', o)
             a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
             print(a.shape)
-            print(extracted_data.shape)
-            ax1.plot(a['Wavelength'], a['Flux']*1)
+            # print(extracted_data.shape)
+            #  ax1.plot(a['Wavelength'], a['Flux']*1)
             line = 2*(int(o) - self.hrsfile.ordershift)
-            ax2.plot(a['Wavelength'], -extracted_data[line]+extracted_data[line-1])  # Correction du ciel en meme temps.
+            # ax2.plot(a['Wavelength'], -extracted_data[line]+extracted_data[line-1])  # Correction du ciel en meme temps.
             dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
@@ -439,6 +451,8 @@ class ListOfFiles(object):
         bias = []
         flat = []
         science = []
+        objet = []
+        sky = []
         path = path if path is not None else self.path
         for item in path.glob('*.fits'):
             if item.name.startswith('H') or item.name.startswith('R'):
@@ -459,17 +473,27 @@ class ListOfFiles(object):
                         bias.append(self.path / item.name)
                     if 'SCI' in h or 'MLT' in h or 'LSP' in h:
                         science.append(self.path / item.name)
+            if item.name.startswith('pH'):
+                if 'obj' in item.name:
+                    objet.append(self.path / item.name)
+                if 'sky' in item.name:
+                    sky.append(self.path / item.name)
+
         # files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
 # We sort the lists to avoid any side effects
         science.sort()
         bias.sort()
         flat.sort()
         thar.sort()
+        objet.sort()
+        sky.sort()
 
         self.science = science
         self.bias = bias
         self.thar = thar
         self.flat = flat
+        self.object = objet
+        self.sky = sky
 
 
 if __name__ == "__main__":
