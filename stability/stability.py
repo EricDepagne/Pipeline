@@ -143,6 +143,12 @@ class FITS(object):
 
         return new
 
+    def plot(self):
+        """
+        Creates a matplotlib window to display the frame
+        Adds a small window which is a zoom on where the cursor is
+        """
+        pass
 
 
 class Order(object):
@@ -187,7 +193,7 @@ class Order(object):
             for pixel in xb:
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
-                mask = test < c[1]/10
+                mask = test < c[1]/15
                 t = ma.array(test, mask=mask)
                 if pixel > frame.xpix:
                     print(pixel)
@@ -236,15 +242,7 @@ class Order(object):
                 # TODO FIXER CETTE PARTIE LA QUI NE MARCHE PAS ET QUI FOUT LE BORDEL
                 # LE COLLAGE DES ORDRES N'EST PAS CORRECT.
 
-                print('--------')
-                print('j:', j)
-                print('i-j:', i-j)
-                print('a[j]:', a[j])
-                print(indices[j] * 50, indices[j + 1] * 50)
-                print(indices[j], indices[j+1])
                 arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
-                print(pts[i-j])
-                print('arr1 :', arr1)
                 o[i, indices[j]:indices[j + 1]] = arr1
         return o
 
@@ -312,7 +310,7 @@ class HRS(FITS):
         parameters = {'HBDET': {'OrderShift': 83,
                                 'XPix': 2048,
                                 'BiasLevel': 690},
-                      'HRDET': {'OrderShift': 53,
+                      'HRDET': {'OrderShift': 52,
                                 'XPix': 4096,
                                 'BiasLevel': 920}}
         self.biaslevel = parameters[self.chip]['BiasLevel']
@@ -327,7 +325,6 @@ class HRS(FITS):
             color = 'red'
         description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
         return description
-
 
     def prepare_data(self, hrsfile):
         """
@@ -363,9 +360,9 @@ class Reduced(object):
     def __init__(self,
                  orderposition='',
                  hrsscience=''):
-        self.orderposition = orderposition
+        # self.orderposition = orderposition
         self.hrsfile = hrsscience
-        self.orders = self._extract_orders(self.orderposition.extracted, self.hrsfile.data)
+        self.orders = self._extract_orders(orderposition.extracted, self.hrsfile.data)
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
 
     def _extract_orders(self, positions, data):
@@ -412,15 +409,22 @@ class Reduced(object):
         # fig, ax1 = plt.subplots()
         # ax2 = ax1.twinx()
 
-        for o in list_orders:
+        for o in list_orders[::-1]:
             print('Ordre :', o)
             a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
-            print(a.shape)
-            # print(extracted_data.shape)
             #  ax1.plot(a['Wavelength'], a['Flux']*1)
             line = 2*(int(o) - self.hrsfile.ordershift)
+            orderlength = 2048
+            if 'HR' in self.hrsfile.chip:
+                if o == 53:
+                    orderlength = 3269
+                else:
+                    orderlength = 4040
             # ax2.plot(a['Wavelength'], -extracted_data[line]+extracted_data[line-1])  # Correction du ciel en meme temps.
-            dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line], 'Sky': extracted_data[line-1], 'Order': [o for i in range(2048)]}))
+            try:
+                dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line, :orderlength], 'Sky': extracted_data[line-1, :orderlength], 'Order': [o for i in range(orderlength)]}))
+            except IndexError:
+                continue
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
         else:
