@@ -191,14 +191,23 @@ class Order(object):
             xb = np.arange(pixelstart, pixelstop, step)
             temp = []
             for pixel in xb:
+                if 'LOW' in frame.mode:
+                    window = 31
+                    polyorder = 5
+                    f = 15
+                else:
+                    window = 37
+                    polyorder = 3
+                    f = 1
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
-                mask = test < c[1]/15
+                mask = test < c[1]/f
                 t = ma.array(test, mask=mask)
                 if pixel > frame.xpix:
                     print(pixel)
                     break
-                xp = find_peaks_cwt(savgol_filter(t, 31, 5), widths=np.arange(1, 20))
+                filtereddata = savgol_filter(t, window, polyorder)
+                xp = find_peaks_cwt(filtereddata, widths=np.arange(1, 20))
 # TODO : Older version of scipy output a list and not a numpy array. Test it. Change occurred in version 0.19
                 if splitscipyversion[0] == '0' and np.int(splitscipyversion[1]) < 19:
                     xp = np.array(xp)
@@ -207,7 +216,10 @@ class Order(object):
                 # print(pixel, x)
                 if pixel == 3050:
                     print(xp, pixel)
+                #if 'LOW' in frame.mode:
                 temp.append(x)
+            print('-----')
+            print(temp)
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
             peaks = np.ones((size, len(temp)), dtype=np.int)
