@@ -111,16 +111,19 @@ class FITS(object):
         """
         import copy
         new = copy.copy(self)
+        dt = new.data.dtype
 
         if isinstance(other, HRS):
-            new.data = self.data + other.data
+            new.data = np.asarray(self.data + other.data, dtype=np.float64)
         elif isinstance(other, np.int):
-            new.data = self.data + other
+            new.data = np.asarray(self.data + other, dtype = np.float64)
         elif isinstance(other, np.float):
-            new.data = self.data + other
+            new.data = np.asarray(self.data + other, dtype=np.float64)
         else:
             return NotImplemented
         (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        new.data[new.data<=0] = 0
+        new.data = np.asarray(new.data, dtype=dt)
         return new
 
     def __sub__(self, other):
@@ -130,18 +133,49 @@ class FITS(object):
         """
         import copy
         new = copy.copy(self)
+        dt = new.data.dtype
 
         if not isinstance(other, HRS):
             if isinstance(other, np.int) or isinstance(other, np.float):
-                new.data = self.data - other
+                new.data = np.asarray(self.data - other, dtype=np.float64)
+                print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
             else:
                 return NotImplemented
         else:
-            new.data = self.data - other.data
+            new.data = np.asarray(self.data, dtype=np.float64) - np.asarray(other.data, dtype=np.float64)
+            print('HRS', new.data.dtype, new.data.min(), new.data.max())
+# updating the datamin and datamax attributes after the substraction.
+        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        new.data[new.data<=0] = 0
+        print('Avant ',new.data.dtype)
+        print(new.data.min(), new.data.max())
+        new.data = np.asarray(new.data, dtype=dt)
+        print(new.data.dtype)
+        print(new.data.min(), new.data.max())
+
+
+        return new
+
+    def __truediv__(self, other):
+        """
+        Define what it is to divide a HRS object
+        """
+        import copy
+        new = copy.copy(self)
+
+        if not isinstance(other, HRS):
+            if isinstance(other, np.int) or isinstance(other, np.float):
+                new.data = self.data / other
+            else:
+                return NotImplemented
+        else:
+            new.data = self.data / other.data
 # updating the datamin and datamax attributes after the substraction.
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
 
         return new
+
+
 
     def plot(self):
         """
@@ -351,7 +385,22 @@ class HRS(FITS):
         return d
 
 
-class Reduced(object):
+class FlatField(object):
+    """
+
+
+    Parameters:
+    -----------
+     masterflat = median( (flat_i - masterbias)/exptime_i ) - masterdark/exptime\n"
+"            - background.\n"
+
+    flat : orders
+    """
+    def make_master(flats):
+        pass
+
+
+class Extract(object):
     """
     With the location of the orders defined, we can now extract the orders from the science frame
     and perform a wavelength calibration
