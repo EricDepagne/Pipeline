@@ -116,13 +116,13 @@ class FITS(object):
         if isinstance(other, HRS):
             new.data = np.asarray(self.data + other.data, dtype=np.float64)
         elif isinstance(other, np.int):
-            new.data = np.asarray(self.data + other, dtype = np.float64)
+            new.data = np.asarray(self.data + other, dtype=np.float64)
         elif isinstance(other, np.float):
             new.data = np.asarray(self.data + other, dtype=np.float64)
         else:
             return NotImplemented
         (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
-        new.data[new.data<=0] = 0
+        new.data[new.data <= 0] = 0
         new.data = np.asarray(new.data, dtype=dt)
         return new
 
@@ -137,7 +137,7 @@ class FITS(object):
 
         if not isinstance(other, HRS):
             if isinstance(other, np.int) or isinstance(other, np.float):
-                new.data = np.asarray(self.data - other, dtype=np.float64)
+                new.data = np.asarray(self.data, dtype=np.float64) - other
                 print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
             else:
                 return NotImplemented
@@ -146,13 +146,12 @@ class FITS(object):
             print('HRS', new.data.dtype, new.data.min(), new.data.max())
 # updating the datamin and datamax attributes after the substraction.
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
-        new.data[new.data<=0] = 0
-        print('Avant ',new.data.dtype)
+        new.data[new.data <= 0] = 0
+        print('Avant ', new.data.dtype)
         print(new.data.min(), new.data.max())
         new.data = np.asarray(new.data, dtype=dt)
         print(new.data.dtype)
         print(new.data.min(), new.data.max())
-
 
         return new
 
@@ -174,15 +173,6 @@ class FITS(object):
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
 
         return new
-
-
-
-    def plot(self):
-        """
-        Creates a matplotlib window to display the frame
-        Adds a small window which is a zoom on where the cursor is
-        """
-        pass
 
 
 class Order(object):
@@ -250,7 +240,6 @@ class Order(object):
                 # print(pixel, x)
                 if pixel == 3050:
                     print(xp, pixel)
-                #if 'LOW' in frame.mode:
                 temp.append(x)
             print('-----')
             print(temp)
@@ -383,6 +372,49 @@ class HRS(FITS):
             d = d[::-1, self.dataX1-1:self.dataX2]
 #
         return d
+
+    def _on_move(self, event):
+        zoom1 = 60
+        zoom2 = 15
+        ax1data = self.data
+        if event.inaxes:
+
+            ax = event.inaxes  # the axes instance
+            if 'AX1' in ax.get_label():
+                # Mouse is in subplot 1.
+                xinf2 = np.int(event.xdata - zoom1)
+                xsup2 = np.int(event.xdata + zoom1)
+                yinf2 = np.int(event.ydata - zoom1)
+                ysup2 = np.int(event.ydata + zoom1)
+                ax2data = ax1data[yinf2:ysup2, xinf2:xsup2]
+                self.artist2.set_data(ax2data)
+                self.ax2.figure.canvas.draw()
+                xinf3 = np.int(event.xdata - zoom2)
+                xsup3 = np.int(event.xdata + zoom2)
+                yinf3 = np.int(event.ydata - zoom2)
+                ysup3 = np.int(event.ydata + zoom2)
+                ax3data = ax1data[yinf3:ysup3, xinf3:xsup3]
+                self.artist3.set_data(ax3data)
+                self.ax3.figure.canvas.draw()
+            # print('Coordonnes pour figure %s  %f  %f' % (self.ax1, event.xdata, event.ydata))
+    def plot(self):
+        """
+        Creates a matplotlib window to display the frame
+        Adds a small window which is a zoom on where the cursor is
+        """
+# Peut-être faire une classe Plot() qui se chargera de tout, et faire que plot() appelle Plot().
+# https://matplotlib.org/examples/animation/subplots.html
+        import matplotlib.pylab as plt
+        import matplotlib.gridspec as gridspec
+        self.gs = gridspec.GridSpec(2, 2)
+        self.ax1 = plt.subplot(self.gs[0:, 0])
+        self.ax1.set_label('AX1')
+        self.ax2 = plt.subplot(self.gs[1])
+        self.ax3 = plt.subplot(self.gs[3])
+        self.ax1.imshow(self.data, vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.artist2 = self.ax2.imshow(self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50], vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.artist3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]/2)-15:np.int(self.data.shape[0]/2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
 
 
 class FlatField(object):
