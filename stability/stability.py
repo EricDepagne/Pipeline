@@ -374,8 +374,8 @@ class HRS(FITS):
         return d
 
     def _on_move(self, event):
-        zoom1 = 60
-        zoom2 = 15
+        zoom1 = 100
+        zoom2 = 50
         ax1data = self.data
         if event.inaxes:
 
@@ -387,16 +387,17 @@ class HRS(FITS):
                 yinf2 = np.int(event.ydata - zoom1)
                 ysup2 = np.int(event.ydata + zoom1)
                 ax2data = ax1data[yinf2:ysup2, xinf2:xsup2]
-                self.artist2.set_data(ax2data)
+                self.plt2.set_data(ax2data)
                 self.ax2.figure.canvas.draw()
                 xinf3 = np.int(event.xdata - zoom2)
                 xsup3 = np.int(event.xdata + zoom2)
                 yinf3 = np.int(event.ydata - zoom2)
                 ysup3 = np.int(event.ydata + zoom2)
                 ax3data = ax1data[yinf3:ysup3, xinf3:xsup3]
-                self.artist3.set_data(ax3data)
+                self.plt3.set_data(ax3data)
                 self.ax3.figure.canvas.draw()
             # print('Coordonnes pour figure %s  %f  %f' % (self.ax1, event.xdata, event.ydata))
+
     def plot(self):
         """
         Creates a matplotlib window to display the frame
@@ -406,15 +407,22 @@ class HRS(FITS):
 # https://matplotlib.org/examples/animation/subplots.html
         import matplotlib.pylab as plt
         import matplotlib.gridspec as gridspec
-        self.gs = gridspec.GridSpec(2, 2)
-        self.ax1 = plt.subplot(self.gs[0:, 0])
-        self.ax1.set_label('AX1')
-        self.ax2 = plt.subplot(self.gs[1])
-        self.ax3 = plt.subplot(self.gs[3])
-        self.ax1.imshow(self.data, vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.artist2 = self.ax2.imshow(self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50], vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.artist3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]/2)-15:np.int(self.data.shape[0]/2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
+        import matplotlib.colorbar as cb
+# Defining the grid on which the plot will be shown
+        gs = gridspec.GridSpec(4, 2)
+# Adding the plots
+        ax1 = plt.subplot(gs[1:, 0])
+        plt1 = ax1.imshow(self.data, vmin=self.dataminzs, vmax=self.datamaxzs)
+        ax1.title.set_text('CCD')
+        ax1.set_label('AX1')
+        cbax1 = plt.subplot(gs[0,0])
+        cb1 = cb.Colorbar(ax=cbax1, mappable=plt1, orientation='horizontal',ticklocation='top')
+        self.ax2 = plt.subplot(gs[0:2,1])
+        self.plt2 = self.ax2.imshow(self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50], vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.ax3 = plt.subplot(gs[2:,1])
+        self.plt3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]/2)-15:np.int(self.data.shape[0]/2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
+        ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
+
 
 
 class FlatField(object):
@@ -496,7 +504,11 @@ class Extract(object):
         '''
         print(self.hrsfile.file.name)
         pyhrsfile = 'p' + self.hrsfile.file.stem + '_obj' + self.hrsfile.file.suffix
-        pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
+        try:
+            pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
+        except FileNotFoundError:
+            print("File {hrsfile} not found, can't do a wavelength calibration.".format(hrsfile=self.hrsfile.file.parent/pyhrsfile))
+            return None
         list_orders = np.unique(pyhrs_data[1].data['Order'])
         dex = pd.DataFrame()
         # fig, ax1 = plt.subplots()
@@ -606,8 +618,8 @@ if __name__ == "__main__":
     # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
     parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
     parser.add_argument('-d',
-                        '--directory',
+                        '--datadir',
                         help='Directory where the data to be reduced are',
                         default='.')
     args = parser.parse_args()
-    datadir = Path(args.directory)
+    datadir = Path(args.datadir)
