@@ -143,15 +143,10 @@ class FITS(object):
                 return NotImplemented
         else:
             new.data = np.asarray(self.data, dtype=np.float64) - np.asarray(other.data, dtype=np.float64)
-            print('HRS', new.data.dtype, new.data.min(), new.data.max())
 # updating the datamin and datamax attributes after the substraction.
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
         new.data[new.data <= 0] = 0
-        print('Avant ', new.data.dtype)
-        print(new.data.min(), new.data.max())
         new.data = np.asarray(new.data, dtype=dt)
-        print(new.data.dtype)
-        print(new.data.min(), new.data.max())
 
         return new
 
@@ -376,7 +371,6 @@ class HRS(FITS):
     def _on_move(self, event):
         zoom1 = 100
         zoom2 = 50
-        #ax1data = self.data
         if event.inaxes:
 
             ax = event.inaxes  # the axes instance
@@ -415,18 +409,17 @@ class HRS(FITS):
         plt1 = ax1.imshow(self.data, vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.title.set_text('CCD')
         ax1.set_label('AX1')
-        cbax1 = plt.subplot(gs[0,0])
-        cb1 = cb.Colorbar(ax=cbax1, mappable=plt1, orientation='horizontal',ticklocation='top')
-        self.ax2 = plt.subplot(gs[0:3,1])
+        cbax1 = plt.subplot(gs[0, 0])
+        cb.Colorbar(ax=cbax1, mappable=plt1, orientation='horizontal', ticklocation='top')
+        self.ax2 = plt.subplot(gs[0:3, 1])
         zoomeddata = self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50]
         self.plt2 = self.ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.ax3 = plt.subplot(gs[3:,1])
+        self.ax3 = plt.subplot(gs[3:, 1])
         self.plt3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]/2)-15:np.int(self.data.shape[0]/2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
 
 
-
-class FlatField(object):
+class Master(object):
     """
 
 
@@ -437,8 +430,28 @@ class FlatField(object):
 
     flat : orders
     """
-    def make_master(flats):
-        pass
+
+    def makemasterbias(lof):
+        from astropy.io import fits
+        blue = []
+        red = []
+        for b in lof.bias:
+            if b.name.startswith('H'):
+                blue.append(b.parent/b.name)
+            elif b.name.startswith('R'):
+                red.append(b.parent/b.name)
+            else:
+                continue
+        t = []
+        for b in blue:
+            t.append(HRS(b).data)
+        shape = list(t[0].shape)
+        shape[:0] = [len(t)]
+        ba = np.concatenate(t).reshape(shape)
+        mbdata = np.int16(np.average(ba, axis=0))
+        mbfile = b.parent/'bluemasterbias.fits'
+        fits.writeto(mbfile, mbdata, HRS(b).header, overwrite=True)
+        ListOfFiles.update(lof, mbfile)
 
 
 class Extract(object):
@@ -552,7 +565,34 @@ class ListOfFiles(object):
     """
     def __init__(self, datadir):
         self.path = datadir
+        self.thar = []
+        self.bias = []
+        self.flat = []
+        self.science = []
+        self.object = []
+        self.sky = []
         self.crawl()
+        self.calibrations_check()
+
+    def update(self, file):
+        """
+        This function updates the bias and flat attributes of the listoffile
+        in order to take into account the master bias/flats that have been created after
+        the datadir has been parsed
+        """
+        print('updating')
+        with fits.open(datadir/file) as fh:
+            propid = fh[0].header['propid']
+            print(propid)
+            print(datadir/file)
+            if 'BIAS' in propid and datadir/file not in self.bias:
+                self.bias.append(datadir/file)
+            else:
+                print('File already included')
+
+    def calibrations_check(self):
+        if not self.flat and not self.bias:
+            print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))
 
     def crawl(self, path=None):
         """
@@ -586,7 +626,7 @@ class ListOfFiles(object):
                         bias.append(self.path / item.name)
                     if 'SCI' in h or 'MLT' in h or 'LSP' in h:
                         science.append(self.path / item.name)
-            if item.name.startswith('pH'):
+            if item.name.startswith('pH') or item.name.startswith('pR'):
                 if 'obj' in item.name:
                     objet.append(self.path / item.name)
                 if 'sky' in item.name:
