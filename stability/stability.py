@@ -376,7 +376,7 @@ class HRS(FITS):
     def _on_move(self, event):
         zoom1 = 100
         zoom2 = 50
-        ax1data = self.data
+        #ax1data = self.data
         if event.inaxes:
 
             ax = event.inaxes  # the axes instance
@@ -386,14 +386,14 @@ class HRS(FITS):
                 xsup2 = np.int(event.xdata + zoom1)
                 yinf2 = np.int(event.ydata - zoom1)
                 ysup2 = np.int(event.ydata + zoom1)
-                ax2data = ax1data[yinf2:ysup2, xinf2:xsup2]
+                ax2data = self.data[yinf2:ysup2, xinf2:xsup2]
                 self.plt2.set_data(ax2data)
                 self.ax2.figure.canvas.draw()
                 xinf3 = np.int(event.xdata - zoom2)
                 xsup3 = np.int(event.xdata + zoom2)
                 yinf3 = np.int(event.ydata - zoom2)
                 ysup3 = np.int(event.ydata + zoom2)
-                ax3data = ax1data[yinf3:ysup3, xinf3:xsup3]
+                ax3data = self.data[yinf3:ysup3, xinf3:xsup3]
                 self.plt3.set_data(ax3data)
                 self.ax3.figure.canvas.draw()
             # print('Coordonnes pour figure %s  %f  %f' % (self.ax1, event.xdata, event.ydata))
@@ -409,7 +409,7 @@ class HRS(FITS):
         import matplotlib.gridspec as gridspec
         import matplotlib.colorbar as cb
 # Defining the grid on which the plot will be shown
-        gs = gridspec.GridSpec(4, 2)
+        gs = gridspec.GridSpec(6, 2)
 # Adding the plots
         ax1 = plt.subplot(gs[1:, 0])
         plt1 = ax1.imshow(self.data, vmin=self.dataminzs, vmax=self.datamaxzs)
@@ -417,9 +417,10 @@ class HRS(FITS):
         ax1.set_label('AX1')
         cbax1 = plt.subplot(gs[0,0])
         cb1 = cb.Colorbar(ax=cbax1, mappable=plt1, orientation='horizontal',ticklocation='top')
-        self.ax2 = plt.subplot(gs[0:2,1])
-        self.plt2 = self.ax2.imshow(self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50], vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.ax3 = plt.subplot(gs[2:,1])
+        self.ax2 = plt.subplot(gs[0:3,1])
+        zoomeddata = self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50]
+        self.plt2 = self.ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.ax3 = plt.subplot(gs[3:,1])
         self.plt3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]/2)-15:np.int(self.data.shape[0]/2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
 
