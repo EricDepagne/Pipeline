@@ -26,60 +26,6 @@ import pandas as pd
 from astropy.visualization import ZScaleInterval
 
 
-def match_orders(sci_data):
-
-        # get wavelength calibration files
-        cal_file = fits.open('npH201510210012_obj.fits')
-        cal_data = cal_file[1].data
-
-        # check OrderShift
-        # if parameters['HRDET']['OrderShift'] != cal_data['Order'][0] and parameters['HBDET']['OrderShift'] != cal_data['Order'][0] :
-        # cal_data=correct_orders(cal_data,sci_data) #need to write if necessary
-        # create temp as a copy of calibrated data
-        temp = cal_data
-        # Determine which points to remove from sci_data
-        excess = np.empty(0, dtype=(int))
-        for i in range(1, 38):
-                excess = np.append(excess, np.array(range(i*2074-27, i*2074-1)))
-        # returns sci_data without excess data points
-        temp['Flux'] = np.delete(sci_data['Flux'], excess)
-        return temp
-
-
-# Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize une fois qu'on a défini des fonctions qui vont faire un calcul sur un élément des tableaux. C'est dans find_orders, vgf et vadd.
-
-
-def extract_orders(positions, data):
-    """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
-    [:,:,0] est la limite inférieure
-    [:,:,1] le centre,
-    [:,:,2] la limite supérieure
-    """
-# TODO penser à mettre l'array en fortran, vu qu'on travaille par colonnes, ça ira plus vite.
-
-    # data = parameters['data']
-    orders = np.zeros((positions.shape[0], data.shape[1]))
-    npixels = orders.shape[1]
-    print(npixels)
-    x = [i for i in range(npixels)]
-    for o in range(2, orders.shape[0]):
-        print('Extracting order : ', o)
-        X = [50 * (i + 1) for i in range(positions[o, :, 0].shape[0])]
-        try:
-            foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
-            fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
-            orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
-            print("Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
-        except ValueError:
-            continue
-        orderwidth = 30
-        for i in x:
-            orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
-# TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
-# Normaliser au nombre de pixels, peut-être.
-    return orders
-
-
 def getshape(orderinf, ordersup):
     """
     In order to derive the shape of a given order, we use one order after and one order before
