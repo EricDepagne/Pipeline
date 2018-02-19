@@ -315,30 +315,28 @@ class HRS(FITS):
         return d
 
     def _on_move(self, event):
-        zoom1 = 100
-        zoom2 = 50
-        if event.inaxes:
+        if event.inaxes is self.ax1:
 
-            ax = event.inaxes  # the axes instance
-            if 'AX1' in ax.get_label():
                 # Mouse is in subplot 1.
-                xinf2 = np.int(event.xdata - zoom1)
-                xsup2 = np.int(event.xdata + zoom1)
-                yinf2 = np.int(event.ydata - zoom1)
-                ysup2 = np.int(event.ydata + zoom1)
-                ax2data = self.data[yinf2:ysup2, xinf2:xsup2]
-                self.plt2.set_data(ax2data)
-                self.ax2.figure.canvas.draw()
-                xinf3 = np.int(event.xdata - zoom2)
-                xsup3 = np.int(event.xdata + zoom2)
-                yinf3 = np.int(event.ydata - zoom2)
-                ysup3 = np.int(event.ydata + zoom2)
-                ax3data = self.data[yinf3:ysup3, xinf3:xsup3]
-                self.plt3.set_data(ax3data)
-                self.ax3.figure.canvas.draw()
+            xinf2 = np.int(event.xdata - self._zoom1)
+            xsup2 = np.int(event.xdata + self._zoom1)
+            yinf2 = np.int(event.ydata - self._zoom1)
+            ysup2 = np.int(event.ydata + self._zoom1)
+            ax2data = self.data[yinf2:ysup2, xinf2:xsup2]
+            self.plot2.set_data(ax2data)
+            self.ax2.figure.canvas.draw()
+            self.fig.canvas.blit(self.ax2.bbox)
+            xinf3 = np.int(event.xdata - self._zoom2)
+            xsup3 = np.int(event.xdata + self._zoom2)
+            yinf3 = np.int(event.ydata - self._zoom2)
+            ysup3 = np.int(event.ydata + self._zoom2)
+            ax3data = self.data[yinf3:ysup3, xinf3:xsup3]
+            self.plot3.set_data(ax3data)
+            self.ax3.figure.canvas.draw()
+            self.fig.canvas.blit(self.ax3.bbox)
             # print('Coordonnes pour figure %s  %f  %f' % (self.ax1, event.xdata, event.ydata))
 
-    def plot(self):
+    def plot(self, fig=None):
         """
         Creates a matplotlib window to display the frame
         Adds a small window which is a zoom on where the cursor is
@@ -350,18 +348,31 @@ class HRS(FITS):
         import matplotlib.colorbar as cb
 # Defining the grid on which the plot will be shown
         gs = gridspec.GridSpec(6, 2)
+        if fig is None:
+            fig = plt.figure(num="connected subplot",
+                             figsize= (9.6, 6.4), clear=True)
+        self.fig = fig
+        self.ax1 = plt.subplot(gs[1:, 0])
+        self.ax2 = plt.subplot(gs[0:3, 1])
+        self.ax3 = plt.subplot(gs[3:, 1])
+        self._zoom1 = 100
+        self._zoom2 = 30
+
+        # Convenience names
+        ax1 = self.ax1
+        ax2 = self.ax2
+        data = self.data
+        zoom = self._zoom1
+
 # Adding the plots
-        ax1 = plt.subplot(gs[1:, 0])
-        plt1 = ax1.imshow(self.data, vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.plot1 = ax1.imshow(data, vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.title.set_text('CCD')
         ax1.set_label('AX1')
         cbax1 = plt.subplot(gs[0, 0])
-        cb.Colorbar(ax=cbax1, mappable=plt1, orientation='horizontal', ticklocation='top')
-        self.ax2 = plt.subplot(gs[0:3, 1])
-        zoomeddata = self.data[np.int(self.data.shape[0]/2)-50:np.int(self.data.shape[0]/2)+50, np.int(self.data.shape[1]/2)-50:np.int(self.data.shape[1]/2)+50]
-        self.plt2 = self.ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.ax3 = plt.subplot(gs[3:, 1])
-        self.plt3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]/2)-15:np.int(self.data.shape[0]/2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
+        cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='top')
+        zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
+        self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.plot3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]//2)-15:np.int(self.data.shape[0]//2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
 
 
@@ -383,21 +394,45 @@ class Master(object):
         red = []
         for b in lof.bias:
             if b.name.startswith('H'):
-                blue.append(b.parent/b.name)
+                blue.append(HRS(b).data)
+                blueheader = HRS(b).header
             elif b.name.startswith('R'):
+                red.append(HRS(b).data)
+                redheader = HRS(b).header
+            else:
+                continue
+        bshape = list(blue[0].shape)
+        bshape[:0] = [len(blue)]
+        ba = np.concatenate(blue).reshape(bshape)
+        mbdata = np.int16(np.average(ba, axis=0))
+        mbfile = b.parent/'bluemasterbias.fits'
+        rshape = list(red[0].shape)
+        rshape[:0] = [len(red)]
+        ra = np.concatenate(red).reshape(rshape)
+        mrdata = np.int16(np.average(ra, axis=0))
+        mrfile = b.parent/'redmasterbias.fits'
+
+        try:
+            fits.writeto(mbfile, mbdata, blueheader, overwrite=True)
+            fits.writeto(mrfile, mrdata, redheader, overwrite=True)
+        except FileNotFoundError:
+            fits.writeto(mrfile, mrdata, redheader, overwrite=False)
+            fits.writeto(mbfile, mbdata, blueheader, overwrite=False)
+        ListOfFiles.update(lof, mbfile)
+        ListOfFiles.update(lof, mrfile)
+
+    def makemasterflat(lof):
+        from astropy.io import fits
+        blue = []
+        red = []
+        for b in lof.flat:
+            if b.name.startswith('H'):
+                blue.append(b.parent/b.name)
+            if b.name.startswith('R'):
                 red.append(b.parent/b.name)
             else:
                 continue
         t = []
-        for b in blue:
-            t.append(HRS(b).data)
-        shape = list(t[0].shape)
-        shape[:0] = [len(t)]
-        ba = np.concatenate(t).reshape(shape)
-        mbdata = np.int16(np.average(ba, axis=0))
-        mbfile = b.parent/'bluemasterbias.fits'
-        fits.writeto(mbfile, mbdata, HRS(b).header, overwrite=True)
-        ListOfFiles.update(lof, mbfile)
 
 
 class Extract(object):
