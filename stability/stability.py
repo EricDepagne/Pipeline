@@ -294,6 +294,7 @@ class HRS(FITS):
         self.xpix = parameters[self.chip]['XPix']
         self.mean = self.data.mean()
         self.std = self.data.std()
+        self.counter = 0
 
     def __repr__(self):
         color = 'blue'
@@ -314,9 +315,11 @@ class HRS(FITS):
 #
         return d
 
-    def _on_move(self, event):
+    def _zoom(self, event):
+        self.counter += 1
+        if self.counter % 3:
+            return
         if event.inaxes is self.ax1:
-
                 # Mouse is in subplot 1.
             xinf2 = np.int(event.xdata - self._zoom1)
             xsup2 = np.int(event.xdata + self._zoom1)
@@ -326,15 +329,13 @@ class HRS(FITS):
             self.plot2.set_data(ax2data)
             self.ax2.figure.canvas.draw()
             self.fig.canvas.blit(self.ax2.bbox)
-            xinf3 = np.int(event.xdata - self._zoom2)
-            xsup3 = np.int(event.xdata + self._zoom2)
-            yinf3 = np.int(event.ydata - self._zoom2)
-            ysup3 = np.int(event.ydata + self._zoom2)
-            ax3data = self.data[yinf3:ysup3, xinf3:xsup3]
-            self.plot3.set_data(ax3data)
+        self.counter = 0
+    
+    def _plot(self, event):
+        if event.inaxes is self.ax1:
+            ax3data = self.data[:, np.int(event.xdata)]
+            self.plot3[0].set_ydata(ax3data)  # self.plot3 is a list of lines. Only the first one contains anything, so updating this one only.
             self.ax3.figure.canvas.draw()
-            self.fig.canvas.blit(self.ax3.bbox)
-            # print('Coordonnes pour figure %s  %f  %f' % (self.ax1, event.xdata, event.ydata))
 
     def plot(self, fig=None):
         """
@@ -350,7 +351,7 @@ class HRS(FITS):
         gs = gridspec.GridSpec(6, 2)
         if fig is None:
             fig = plt.figure(num="connected subplot",
-                             figsize= (9.6, 6.4), clear=True)
+                             figsize=(9.6, 6.4), clear=True)
         self.fig = fig
         self.ax1 = plt.subplot(gs[1:, 0])
         self.ax2 = plt.subplot(gs[0:3, 1])
@@ -361,6 +362,7 @@ class HRS(FITS):
         # Convenience names
         ax1 = self.ax1
         ax2 = self.ax2
+        ax3 = self.ax3
         data = self.data
         zoom = self._zoom1
 
@@ -372,8 +374,10 @@ class HRS(FITS):
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='top')
         zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.plot3 = self.ax3.imshow(self.data[np.int(self.data.shape[0]//2)-15:np.int(self.data.shape[0]//2)+15, np.int(self.data.shape[1]/2)-15:np.int(self.data.shape[1]/2)+15], vmin=self.dataminzs, vmax=self.datamaxzs)
-        ax1.figure.canvas.mpl_connect('motion_notify_event', self._on_move)
+        self.plot3 = ax3.plot(self.data[:, np.int(self.data.shape[1]/2)])
+        print(self.counter)
+        ax1.figure.canvas.mpl_connect('motion_notify_event', self._zoom)
+        ax1.figure.canvas.mpl_connect('button_press_event', self._plot)
 
 
 class Master(object):
