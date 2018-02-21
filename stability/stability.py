@@ -333,13 +333,14 @@ class HRS(FITS):
 
     def _plot(self, event):
         if event.inaxes is self.ax1:
-            print(event.button)
             ax3ydata = self.data[:, np.int(event.xdata)]
             ax3xdata = self.data[np.int(event.ydata), :]
             if event.button == 1:
-                self.plot3[0].set_ydata(ax3ydata)  # self.plot3 is a list of lines. Only the first one contains anything, so updating this one only.
+                self.ax3.cla()
+                self.ax3.plot(ax3ydata, color=self.ax3.color)  
             elif event.button == 3:
-                self.plot4[0].set_ydata(ax3xdata)
+                self.ax4.cla()
+                self.ax4.plot(ax3xdata, color=self.ax4.color)
             self.ax3.figure.canvas.draw()
 
     def plot(self, fig=None):
@@ -353,14 +354,16 @@ class HRS(FITS):
         import matplotlib.gridspec as gridspec
         import matplotlib.colorbar as cb
 # Defining the grid on which the plot will be shown
-        gs = gridspec.GridSpec(6, 2)
+        grid = gridspec.GridSpec(6, 2)
         if fig is None:
             fig = plt.figure(num="connected subplot",
                              figsize=(9.6, 6.4), clear=True)
         self.fig = fig
-        self.ax1 = plt.subplot(gs[1:, 0])
-        self.ax2 = plt.subplot(gs[0:3, 1])
-        self.ax3 = plt.subplot(gs[3:, 1])
+        self.ax1 = fig.add_subplot(grid[1:, 0])
+        self.ax2 = fig.add_subplot(grid[0:3, 1])
+        self.ax3 = fig.add_subplot(grid[3:, 1], label='x')
+        self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)  # This creates a second plot on top of ax3. This way, we can plot multiple stuff at the same location, while still controlling the behaviour individually
+        cbax1 = fig.add_subplot(grid[0, 0])
         fig.subplots_adjust(wspace=0.3, hspace=0.5)
         self._zoom1 = 100
         self._zoom2 = 30
@@ -369,6 +372,9 @@ class HRS(FITS):
         ax1 = self.ax1
         ax2 = self.ax2
         ax3 = self.ax3
+        ax3.color = 'xkcd:cerulean'
+        ax4 = self.ax4
+        ax4.color = 'xkcd:tangerine'
         data = self.data
         zoom = self._zoom1
 
@@ -376,14 +382,17 @@ class HRS(FITS):
         self.plot1 = ax1.imshow(data, vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.title.set_text('CCD')
         ax1.set_label('AX1')
-        cbax1 = plt.subplot(gs[0, 0])
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='top')
         zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.plot3 = ax3.plot(self.data[:, np.int(self.data.shape[1]/2)], color='peachpuff')
-        self.plot4 = ax3.plot(self.data[np.int(self.data.shape[0]/2), :], color='tomato')
-        print(self.plot3)
-        print(self.plot4)
+        # We need to tidy the bottom right plot a little bit first
+        #self.ax3.tick_params(axis='x', color=ax3.color)
+        #self.ax3.tick_params(axis='y', color=ax3.color)
+        self.ax4.xaxis.tick_top()
+        self.ax4.yaxis.tick_right()
+
+        self.ax3.plot(self.data[:, np.int(self.data.shape[1]/2)], color=ax3.color)
+        self.ax4.plot(self.data[np.int(self.data.shape[0]/2), :], color=ax4.color)
         ax1.figure.canvas.mpl_connect('motion_notify_event', self._zoom)
         ax1.figure.canvas.mpl_connect('button_press_event', self._plot)
         plt.show()
