@@ -330,11 +330,16 @@ class HRS(FITS):
             self.ax2.figure.canvas.draw()
             self.fig.canvas.blit(self.ax2.bbox)
         self.counter = 0
-    
+
     def _plot(self, event):
         if event.inaxes is self.ax1:
-            ax3data = self.data[:, np.int(event.xdata)]
-            self.plot3[0].set_ydata(ax3data)  # self.plot3 is a list of lines. Only the first one contains anything, so updating this one only.
+            print(event.button)
+            ax3ydata = self.data[:, np.int(event.xdata)]
+            ax3xdata = self.data[np.int(event.ydata), :]
+            if event.button == 1:
+                self.plot3[0].set_ydata(ax3ydata)  # self.plot3 is a list of lines. Only the first one contains anything, so updating this one only.
+            elif event.button == 3:
+                self.plot4[0].set_ydata(ax3xdata)
             self.ax3.figure.canvas.draw()
 
     def plot(self, fig=None):
@@ -344,7 +349,7 @@ class HRS(FITS):
         """
 # Peut-être faire une classe Plot() qui se chargera de tout, et faire que plot() appelle Plot().
 # https://matplotlib.org/examples/animation/subplots.html
-        import matplotlib.pylab as plt
+        import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
         import matplotlib.colorbar as cb
 # Defining the grid on which the plot will be shown
@@ -356,6 +361,7 @@ class HRS(FITS):
         self.ax1 = plt.subplot(gs[1:, 0])
         self.ax2 = plt.subplot(gs[0:3, 1])
         self.ax3 = plt.subplot(gs[3:, 1])
+        fig.subplots_adjust(wspace=0.3, hspace=0.5)
         self._zoom1 = 100
         self._zoom2 = 30
 
@@ -374,10 +380,13 @@ class HRS(FITS):
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='top')
         zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
-        self.plot3 = ax3.plot(self.data[:, np.int(self.data.shape[1]/2)])
-        print(self.counter)
+        self.plot3 = ax3.plot(self.data[:, np.int(self.data.shape[1]/2)], color='peachpuff')
+        self.plot4 = ax3.plot(self.data[np.int(self.data.shape[0]/2), :], color='tomato')
+        print(self.plot3)
+        print(self.plot4)
         ax1.figure.canvas.mpl_connect('motion_notify_event', self._zoom)
         ax1.figure.canvas.mpl_connect('button_press_event', self._plot)
+        plt.show()
 
 
 class Master(object):
