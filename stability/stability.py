@@ -337,10 +337,23 @@ class HRS(FITS):
             ax3xdata = self.data[np.int(event.ydata), :]
             if event.button == 1:  # Left button
                 self.ax3.cla()
+                self.ax3.yaxis.tick_left()
+                self.ax3.set_xlabel('Pixel', color=self.ax3.color)
+                self.ax3.set_ylabel('Intensity', color=self.ax3.color)
+                self.ax3.xaxis.set_label_position('bottom')
+                self.ax3.yaxis.set_label_position('left')
+                self.ax3.tick_params(axis='y', colors=self.ax3.color)
                 self.ax3.plot(ax3ydata, color=self.ax3.color)
                 self.ax3.figure.canvas.draw()
             elif event.button == 3:  # Right button
                 self.ax4.cla()
+                self.ax4.xaxis.tick_top()
+                self.ax4.yaxis.tick_right()
+                self.ax4.set_xlabel('Pixel', color=self.ax4.color)
+                self.ax4.set_ylabel('Intensity', color=self.ax4.color)
+                self.ax4.xaxis.set_label_position('top')
+                self.ax4.yaxis.set_label_position('right')
+                self.ax4.tick_params(axis='y', colors=self.ax4.color)
                 self.ax4.plot(ax3xdata, color=self.ax4.color)
                 self.ax4.figure.canvas.draw()
 
@@ -357,15 +370,15 @@ class HRS(FITS):
 # Defining the grid on which the plot will be shown
         grid = gridspec.GridSpec(6, 2)
         if fig is None:
-            fig = plt.figure(num="connected subplot",
+            fig = plt.figure(num="HRS Frame visualisation",
                              figsize=(9.6, 6.4), clear=True)
         self.fig = fig
-        self.ax1 = fig.add_subplot(grid[1:, 0])
+        self.ax1 = fig.add_subplot(grid[:-1, 0])
         self.ax2 = fig.add_subplot(grid[0:3, 1])
         self.ax3 = fig.add_subplot(grid[3:, 1], label='x')
         self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)  # This creates a second plot on top of ax3. This way, we can plot multiple stuff at the same location, while still controlling the behaviour individually
-        cbax1 = fig.add_subplot(grid[0, 0])
-        fig.subplots_adjust(wspace=0.3, hspace=1.2)
+        cbax1 = fig.add_subplot(grid[-1, 0])
+        fig.subplots_adjust(wspace=0.3, hspace=2.2)
         self._zoom1 = 100
 
         # Convenience names
@@ -381,14 +394,28 @@ class HRS(FITS):
         # Adding the plots
         self.plot1 = ax1.imshow(data, vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.title.set_text('CCD')
-        cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='top')
+        cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='bottom')
         zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
         # We need to tidy the bottom right plot a little bit first
-        # self.ax3.tick_params(axis='x', color=ax3.color)
-        # self.ax3.tick_params(axis='y', color=ax3.color)
+        # Ax3 first
+        self.ax3.tick_params(axis='x', colors=ax3.color)
+        self.ax3.tick_params(axis='y', colors=ax3.color)
+        self.ax3.xaxis.tick_bottom()
+        self.ax3.yaxis.tick_left()
+        self.ax3.set_xlabel('Pixel', color=ax3.color)
+        self.ax3.set_ylabel('Intensity', color=ax3.color)
+        self.ax3.xaxis.set_label_position('bottom')
+        self.ax3.yaxis.set_label_position('left')
+        # Ax4 
+        self.ax4.tick_params(axis='x', colors=ax4.color)
+        self.ax4.tick_params(axis='y', colors=ax4.color)
         self.ax4.xaxis.tick_top()
         self.ax4.yaxis.tick_right()
+        self.ax4.set_xlabel('Pixel', color=ax4.color)
+        self.ax4.set_ylabel('Intensity', color=ax4.color)
+        self.ax4.xaxis.set_label_position('top')
+        self.ax4.yaxis.set_label_position('right')
 
         self.ax3.plot(self.data[:, np.int(self.data.shape[1]/2)], color=ax3.color)
         self.ax4.plot(self.data[np.int(self.data.shape[0]/2), :], color=ax4.color)
