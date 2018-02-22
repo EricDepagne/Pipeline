@@ -317,7 +317,7 @@ class HRS(FITS):
 
     def _zoom(self, event):
         self.counter += 1
-        if self.counter % 3:
+        if self.counter % 4:  # Limiting the frequency of the update to every 4 moves.
             return
         if event.inaxes is self.ax1:
                 # Mouse is in subplot 1.
@@ -335,13 +335,14 @@ class HRS(FITS):
         if event.inaxes is self.ax1:
             ax3ydata = self.data[:, np.int(event.xdata)]
             ax3xdata = self.data[np.int(event.ydata), :]
-            if event.button == 1:
+            if event.button == 1:  # Left button
                 self.ax3.cla()
-                self.ax3.plot(ax3ydata, color=self.ax3.color)  
-            elif event.button == 3:
+                self.ax3.plot(ax3ydata, color=self.ax3.color)
+                self.ax3.figure.canvas.draw()
+            elif event.button == 3:  # Right button
                 self.ax4.cla()
                 self.ax4.plot(ax3xdata, color=self.ax4.color)
-            self.ax3.figure.canvas.draw()
+                self.ax4.figure.canvas.draw()
 
     def plot(self, fig=None):
         """
@@ -364,9 +365,8 @@ class HRS(FITS):
         self.ax3 = fig.add_subplot(grid[3:, 1], label='x')
         self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)  # This creates a second plot on top of ax3. This way, we can plot multiple stuff at the same location, while still controlling the behaviour individually
         cbax1 = fig.add_subplot(grid[0, 0])
-        fig.subplots_adjust(wspace=0.3, hspace=0.5)
+        fig.subplots_adjust(wspace=0.3, hspace=1.2)
         self._zoom1 = 100
-        self._zoom2 = 30
 
         # Convenience names
         ax1 = self.ax1
@@ -378,16 +378,15 @@ class HRS(FITS):
         data = self.data
         zoom = self._zoom1
 
-# Adding the plots
+        # Adding the plots
         self.plot1 = ax1.imshow(data, vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.title.set_text('CCD')
-        ax1.set_label('AX1')
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='top')
         zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
         # We need to tidy the bottom right plot a little bit first
-        #self.ax3.tick_params(axis='x', color=ax3.color)
-        #self.ax3.tick_params(axis='y', color=ax3.color)
+        # self.ax3.tick_params(axis='x', color=ax3.color)
+        # self.ax3.tick_params(axis='y', color=ax3.color)
         self.ax4.xaxis.tick_top()
         self.ax4.yaxis.tick_right()
 
@@ -528,13 +527,10 @@ class Extract(object):
             return None
         list_orders = np.unique(pyhrs_data[1].data['Order'])
         dex = pd.DataFrame()
-        # fig, ax1 = plt.subplots()
-        # ax2 = ax1.twinx()
 
         for o in list_orders[::-1]:
             print('Ordre :', o)
             a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
-            #  ax1.plot(a['Wavelength'], a['Flux']*1)
             line = 2*(int(o) - self.hrsfile.ordershift)
             orderlength = 2048
             if 'HR' in self.hrsfile.chip:
@@ -542,7 +538,6 @@ class Extract(object):
                     orderlength = 3269
                 else:
                     orderlength = 4040
-            # ax2.plot(a['Wavelength'], -extracted_data[line]+extracted_data[line-1])  # Correction du ciel en meme temps.
             try:
                 dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line, :orderlength], 'Sky': extracted_data[line-1, :orderlength], 'Order': [o for i in range(orderlength)]}))
             except IndexError:
@@ -554,9 +549,9 @@ class Extract(object):
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
         print(name)
         dex.to_csv(name, compression='gzip')
-# Removing the duplicate indices from the append()
+        # Removing the duplicate indices from the append()
         dex = dex.reset_index()
-# Reordering the columns
+        # Reordering the columns
         dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
         return dex
 
