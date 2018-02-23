@@ -393,7 +393,7 @@ class HRS(FITS):
 
         # Adding the plots
         self.plot1 = ax1.imshow(data, vmin=self.dataminzs, vmax=self.datamaxzs)
-        ax1.title.set_text('CCD')
+        ax1.title.set_text(self.name)
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='bottom')
         zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
@@ -407,7 +407,7 @@ class HRS(FITS):
         self.ax3.set_ylabel('Intensity', color=ax3.color)
         self.ax3.xaxis.set_label_position('bottom')
         self.ax3.yaxis.set_label_position('left')
-        # Ax4 
+        # Ax4
         self.ax4.tick_params(axis='x', colors=ax4.color)
         self.ax4.tick_params(axis='y', colors=ax4.color)
         self.ax4.xaxis.tick_top()
