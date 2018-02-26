@@ -1,6 +1,59 @@
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.gridspec as gridspec
+from matplotlib.figure import Figure
+
 # QT5 imports
-from PyQt5.QtWidgets import (QMainWindow, QMenu, QMessageBox)
+from PyQt5.QtWidgets import (QMainWindow, QMenu, QMessageBox, QWidget, QVBoxLayout, QTabWidget, QSizePolicy)
 from PyQt5.QtCore import Qt
+
+
+class MyMplCanvas(FigureCanvas):
+    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        grid = gridspec.GridSpec(6, 2)
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.ax1 = fig.add_subplot(grid[:-1, 0])
+        self.ax2 = fig.add_subplot(grid[0:3, 1])
+        self.ax3 = fig.add_subplot(grid[3:, 1], label='x')
+        self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)  # This creates a second plot on top of ax3. This way, we can plot multiple stuff at the same location, while still controlling the behaviour individually
+        cbax1 = fig.add_subplot(grid[-1, 0])
+        fig.subplots_adjust(wspace=0.3, hspace=2.2)
+
+        self.compute_initial_figure()
+
+        FigureCanvas.__init__(self, fig)
+        self.setParent(parent)
+
+        FigureCanvas.setSizePolicy(self,
+                                   QSizePolicy.Expanding,
+                                   QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+
+    def compute_initial_figure(self):
+        pass
+
+
+class MyStaticMplCanvas(MyMplCanvas):
+    pass
+
+
+class MyDynamicMplCanvas(MyMplCanvas):
+    pass
+
+
+class HRS_Window(QWidget):
+    def __init__(self, parent):
+        super(QWidget, self).__init__(parent)
+        self.layout = QVBoxLayout(self)
+
+        # Initialize tab screen
+        self.tabs = QTabWidget()
+        self.tab1 = MyStaticMplCanvas()
+        self.tab2 = MyDynamicMplCanvas()
+        self.tabs.addTab(self.tab1, "HRS Frame")
+        #self.tabs.addTab(self.tab2, "Tab 2")
+        self.layout.addWidget(self.tabs)
 
 
 class MainWindow(QMainWindow):
