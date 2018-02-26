@@ -4,7 +4,7 @@ This modules processes the HRS data and produces a 1D spectrum
 import six
 import distutils.version
 
-from . import stability
+from .stability import FITS
 from .window import MainWindow
 
 def compare_versions(a, b):
