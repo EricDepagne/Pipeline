@@ -86,7 +86,7 @@ class HRS_Window(QWidget):
         # Initialize tab screen
         self.tabs = QTabWidget()
         self.tab2 = MyStaticMplCanvas()
-        self.tab1 = DirView(lof)
+        self.tab1 = DirView(directory)
         self.tabs.addTab(self.tab1, self.directory)
         self.tabs.addTab(self.tab2, "HRS Frame")
         self.layout.addWidget(self.tabs)
@@ -94,16 +94,15 @@ class HRS_Window(QWidget):
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, model=None, init_dir='toto'):
+    def __init__(self, model=None, directory='toto'):
         QMainWindow.__init__(self)
-        self.init_dir = init_dir
+        self.directory= directory
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setWindowTitle("application main window")
+        self.setWindowTitle("HRS Data Reduction Pipeline")
 
         self.file_menu = QMenu('&File', self)
         self.file_menu.addAction('&Choose directory', self.opendirectoryDialog, Qt.CTRL+Qt.Key_O)
-        self.file_menu.addAction('&Quit', self.fileQuit,
-                                 Qt.CTRL + Qt.Key_Q)
+        self.file_menu.addAction('&Quit', self.fileQuit, Qt.CTRL + Qt.Key_Q)
         self.menuBar().addMenu(self.file_menu)
 
         self.help_menu = QMenu('&Help', self)
@@ -113,7 +112,7 @@ class MainWindow(QMainWindow):
         self.help_menu.addAction('&About', self.about)
 
         # self.main_widget = QtWidgets.QWidget(self)
-        self.main_widget = HRS_Window(self, init_dir)
+        self.main_widget = HRS_Window(self, self.directory)
 
         # l = QtWidgets.QVBoxLayout(self.main_widget)
         # sc = MyStaticMplCanvas(self.main_widget, width=5, height=4, dpi=100)
@@ -124,7 +123,7 @@ class MainWindow(QMainWindow):
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
 
-        self.statusBar().showMessage(self.init_dir, 2000)
+        self.statusBar().showMessage(self.directory, 2000)
 
     def opendirectoryDialog(self):
         self.selecteddir = QFileDialog.getExistingDirectory(self, "Select Directory")
