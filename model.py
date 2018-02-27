@@ -1,6 +1,10 @@
 from astropy.io import fits
 from pathlib import Path
 
+import numpy as np
+
+from astropy.visualization import ZScaleInterval
+
 
 class Data(object):
     """
@@ -11,6 +15,7 @@ class Data(object):
         lof = ListOfFiles(self.datadir)
         print('files in {dir} : {lof}'.format(dir=self.datadir, lof=lof))
         print('init', self.datadir, lof.science)
+
 
 class ListOfFiles(object):
     """
@@ -68,8 +73,6 @@ class ListOfFiles(object):
                 with fits.open(path / item.name) as fh:
                     try:
                         h = fh[0].header['PROPID']
-                        t = fh[0].header['TIME-OBS']
-                        d = fh[0].header['DATE-OBS']
                     except KeyError:
                         # no propid, probably not a SALT FITS file.
                         continue
@@ -103,6 +106,7 @@ class ListOfFiles(object):
         self.object = objet
         self.sky = sky
 
+
 class FITS(object):
     """
     Class describing how to handle FITS file.
@@ -112,3 +116,116 @@ class FITS(object):
         with fits.open(self.file) as fh:
             self.header = fh[0].header
             self.data = fh[0].data
+
+    def __add__(self, other):
+        """
+        Defining what it is to add two HRS objects
+        """
+        import copy
+        new = copy.copy(self)
+        dt = new.data.dtype
+
+        if isinstance(other, HRS):
+            new.data = np.asarray(self.data + other.data, dtype=np.float64)
+        elif isinstance(other, np.int):
+            new.data = np.asarray(self.data + other, dtype=np.float64)
+        elif isinstance(other, np.float):
+            new.data = np.asarray(self.data + other, dtype=np.float64)
+        else:
+            return NotImplemented
+        new.data[new.data <= 0] = 0
+        new.data = np.asarray(new.data, dtype=dt)
+        return new
+
+    def __sub__(self, other):
+        """
+        Defining what substracting two HRS object is.
+
+        """
+        import copy
+        new = copy.copy(self)
+        dt = new.data.dtype
+
+        if not isinstance(other, HRS):
+            if isinstance(other, np.int) or isinstance(other, np.float):
+                new.data = np.asarray(self.data, dtype=np.float64) - other
+                print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
+            else:
+                return NotImplemented
+        else:
+            new.data = np.asarray(self.data, dtype=np.float64) - np.asarray(other.data, dtype=np.float64)
+# updating the datamin and datamax attributes after the substraction.
+        new.data[new.data <= 0] = 0
+        new.data = np.asarray(new.data, dtype=dt)
+
+        return new
+
+    def __truediv__(self, other):
+        """
+        Define what it is to divide a HRS object
+        """
+        import copy
+        new = copy.copy(self)
+
+        if not isinstance(other, HRS):
+            if isinstance(other, np.int) or isinstance(other, np.float):
+                new.data = self.data / other
+            else:
+                return NotImplemented
+        else:
+            new.data = self.data / other.data
+
+        return new
+
+
+class HRS(FITS):
+    """
+    Class to deal with HRS files.
+    the data attribute is such that all frames have the same orientation
+    """
+    def __init__(self,
+                 hrsfile=''):
+        self.file = hrsfile
+        self.hdulist = fits.open(self.file)
+        self.header = self.hdulist[0].header
+        self.dataX1 = int(self.header['DATASEC'][1:8].split(':')[0])
+        self.dataX2 = int(self.header['DATASEC'][1:8].split(':')[1])
+        self.dataY1 = int(self.header['DATASEC'][9:15].split(':')[0])
+        self.dataY2 = int(self.header['DATASEC'][9:15].split(':')[1])
+        self.mode = self.header['OBSMODE']
+        self.name = self.header['OBJECT']
+        self.chip = self.header['DETNAM']
+        self.data = self.prepare_data(self.file)
+        self.shape = self.data.shape
+        (self.dataminzs, self.datamaxzs) = ZScaleInterval().get_limits(self.data)
+        parameters = {'HBDET': {'OrderShift': 83,
+                                'XPix': 2048,
+                                'BiasLevel': 690},
+                      'HRDET': {'OrderShift': 52,
+                                'XPix': 4096,
+                                'BiasLevel': 920}}
+        self.biaslevel = parameters[self.chip]['BiasLevel']
+        self.ordershift = parameters[self.chip]['OrderShift']
+        self.xpix = parameters[self.chip]['XPix']
+        self.mean = self.data.mean()
+        self.std = self.data.std()
+        self.counter = 0
+
+    def __repr__(self):
+        color = 'blue'
+        if 'HR' in self.chip:
+            color = 'red'
+        description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
+        return description
+
+    def prepare_data(self, hrsfile):
+        """
+        This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
+        """
+        d = self.hdulist[0].data
+        if self.chip == 'HRDET':
+            d = d[:, self.dataX1-1:self.dataX2]
+        else:
+            d = d[::-1, self.dataX1-1:self.dataX2]
+#
+        return d
