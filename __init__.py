@@ -4,8 +4,9 @@ This modules processes the HRS data and produces a 1D spectrum
 import six
 import distutils.version
 
-from .stability import FITS
+from .model import FITS
 from .window import MainWindow
+from .model import Data, ListOfFiles
 
 def compare_versions(a, b):
     "return True if a is greater than or equal to b"

@@ -1,9 +1,12 @@
+import numpy as np
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.gridspec as gridspec
 from matplotlib.figure import Figure
 
 # QT5 imports
-from PyQt5.QtWidgets import (QMainWindow, QMenu, QMessageBox, QWidget, QVBoxLayout, QTabWidget, QSizePolicy)
+from PyQt5.QtWidgets import (QMainWindow, QMenu, QMessageBox, QWidget, QVBoxLayout, QTabWidget, QSizePolicy, QFileDialog)
+
 from PyQt5.QtCore import Qt
 
 
@@ -35,7 +38,12 @@ class MyMplCanvas(FigureCanvas):
 
 
 class MyStaticMplCanvas(MyMplCanvas):
-    pass
+    """Simple canvas with a sine plot."""
+
+    def compute_initial_figure(self):
+        t = np.arange(0.0, 3.0, 0.01)
+        s = np.sin(2*np.pi*t)
+        self.ax1.plot(t, s)
 
 
 class MyDynamicMplCanvas(MyMplCanvas):
@@ -52,17 +60,20 @@ class HRS_Window(QWidget):
         self.tab1 = MyStaticMplCanvas()
         self.tab2 = MyDynamicMplCanvas()
         self.tabs.addTab(self.tab1, "HRS Frame")
-        #self.tabs.addTab(self.tab2, "Tab 2")
+        # self.tabs.addTab(self.tab2, "Tab 2")
         self.layout.addWidget(self.tabs)
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+
+    def __init__(self, model=None, init_dir = 'toto'):
         QMainWindow.__init__(self)
+        self.init_dir = init_dir
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowTitle("application main window")
 
         self.file_menu = QMenu('&File', self)
+        self.file_menu.addAction('&Choose directory', self.opendirectoryDialog, Qt.CTRL+Qt.Key_O)
         self.file_menu.addAction('&Quit', self.fileQuit,
                                  Qt.CTRL + Qt.Key_Q)
         self.menuBar().addMenu(self.file_menu)
@@ -85,7 +96,11 @@ class MainWindow(QMainWindow):
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
 
-        self.statusBar().showMessage("All hail matplotlib!", 2000)
+        self.statusBar().showMessage(self.init_dir, 2000)
+
+    def opendirectoryDialog(self):
+        self.selecteddir =  QFileDialog.getExistingDirectory(self, "Select Directory")
+        self.statusBar().showMessage(self.selecteddir)
 
     def fileQuit(self):
         self.close()
@@ -95,15 +110,6 @@ class MainWindow(QMainWindow):
 
     def about(self):
         QMessageBox.about(self, "About",
-                                    """embedding_in_qt5.py example
-Copyright 2005 Florent Rougon, 2006 Darren Dale, 2015 Jens H Nielsen
-
-This program is a simple example of a Qt5 application embedding matplotlib
-canvases.
-
-It may be used and modified with no restriction; raw copies as well as
-modified versions may be distributed without limitation.
-
-This is modified from the embedding in qt4 example to show the difference
-between qt4 and qt5"""
-                                )
+                                """Embedding_in_qt5.py example
+Copyright 2005 Florent Rougon, 2006 Darren Dale, 2015 Jens H Nielsen.\nThis program is a simple example of a Qt5 application embedding matplotlib canvases.\nIt may be used and modified with no restriction; raw copies as well as
+modified versions may be distributed without limitation.\nThis is modified from the embedding in qt4 example to show the difference between qt4 and qt5""")

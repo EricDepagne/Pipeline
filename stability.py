@@ -669,20 +669,3 @@ class ListOfFiles(object):
         self.flat = flat
         self.object = objet
         self.sky = sky
-
-
-if __name__ == "__main__":
-    import astropy as ap
-    apv = ap.__version__.split('.')
-    if apv[0] == '1' and int(apv[1]) <= 4:
-        from sys import exit
-        print('You need to upgrade to a version of Astropy greater than 1.3.1')
-        exit()
-    # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
-    parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
-    parser.add_argument('-d',
-                        '--datadir',
-                        help='Directory where the data to be reduced are',
-                        default='.')
-    args = parser.parse_args()
-    datadir = Path(args.datadir)
