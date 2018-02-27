@@ -64,7 +64,7 @@ class FITS(object):
             new.data = np.asarray(self.data + other, dtype=np.float64)
         else:
             return NotImplemented
-        (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
         new.data[new.data <= 0] = 0
         new.data = np.asarray(new.data, dtype=dt)
         return new

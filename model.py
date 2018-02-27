@@ -13,8 +13,6 @@ class Data(object):
     def __init__(self, datadir='/home/eric/Temp/'):
         self.datadir = Path(datadir)
         lof = ListOfFiles(self.datadir)
-        print('files in {dir} : {lof}'.format(dir=self.datadir, lof=lof))
-        print('init', self.datadir, lof.science)
 
 
 class ListOfFiles(object):
@@ -66,7 +64,6 @@ class ListOfFiles(object):
         objet = []
         sky = []
         path = path if path is not None else self.path
-        print('path : {path}'.format(path=path))
         for item in path.glob('*.fits'):
             if item.name.startswith('H') or item.name.startswith('R'):
                 # print('File : {file}'.format(file=path / item.name))

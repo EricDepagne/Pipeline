@@ -5,9 +5,9 @@ import matplotlib.gridspec as gridspec
 from matplotlib.figure import Figure
 
 # QT5 imports
-from PyQt5.QtWidgets import (QMainWindow, QMenu, QMessageBox, QWidget, QVBoxLayout, QTabWidget, QSizePolicy, QFileDialog)
+from PyQt5.QtWidgets import (QMainWindow, QMenu, QMessageBox, QWidget, QHBoxLayout, QVBoxLayout, QTabWidget, QSizePolicy, QFileDialog, QPushButton, QListWidget)
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import pyqtSlot, Qt
 
 
 class MyMplCanvas(FigureCanvas):
@@ -46,27 +46,55 @@ class MyStaticMplCanvas(MyMplCanvas):
         self.ax1.plot(t, s)
 
 
-class MyDynamicMplCanvas(MyMplCanvas):
-    pass
+class DirView(QWidget):
+
+    def __init__(self, lof):
+        super(QWidget, self).__init__()
+        s = QPushButton('Science')
+        s.clicked.connect(self.on_click)
+        b = QPushButton('Bias')
+        t = QPushButton('ThAr')
+        f = QPushButton('Flat')
+
+        glayout = QHBoxLayout()
+        type = QVBoxLayout()
+        type.addWidget(s)
+        type.addWidget(b)
+        type.addWidget(t)
+        type.addWidget(f)
+        details = QVBoxLayout()
+        self.content = QListWidget()
+
+        details.addWidget(self.content)
+
+        glayout.addLayout(type)
+        glayout.addLayout(details)
+        self.setLayout(glayout)
+
+    @pyqtSlot()
+    def on_click(self):
+        print('bouton poussé')
+        self.content.addItem('test')
 
 
 class HRS_Window(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, directory):
         super(QWidget, self).__init__(parent)
+        self.directory = directory
         self.layout = QVBoxLayout(self)
 
         # Initialize tab screen
         self.tabs = QTabWidget()
-        self.tab1 = MyStaticMplCanvas()
-        self.tab2 = MyDynamicMplCanvas()
-        self.tabs.addTab(self.tab1, "HRS Frame")
-        # self.tabs.addTab(self.tab2, "Tab 2")
+        self.tab2 = MyStaticMplCanvas()
+        self.tab1 = DirView(lof)
+        self.tabs.addTab(self.tab1, self.directory)
+        self.tabs.addTab(self.tab2, "HRS Frame")
         self.layout.addWidget(self.tabs)
 
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, model=None, init_dir = 'toto'):
+    def __init__(self, model=None, init_dir='toto'):
         QMainWindow.__init__(self)
         self.init_dir = init_dir
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -85,7 +113,7 @@ class MainWindow(QMainWindow):
         self.help_menu.addAction('&About', self.about)
 
         # self.main_widget = QtWidgets.QWidget(self)
-        self.main_widget = HRS_Window(self)
+        self.main_widget = HRS_Window(self, init_dir)
 
         # l = QtWidgets.QVBoxLayout(self.main_widget)
         # sc = MyStaticMplCanvas(self.main_widget, width=5, height=4, dpi=100)
@@ -99,7 +127,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(self.init_dir, 2000)
 
     def opendirectoryDialog(self):
-        self.selecteddir =  QFileDialog.getExistingDirectory(self, "Select Directory")
+        self.selecteddir = QFileDialog.getExistingDirectory(self, "Select Directory")
         self.statusBar().showMessage(self.selecteddir)
 
     def fileQuit(self):

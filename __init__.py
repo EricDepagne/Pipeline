@@ -7,6 +7,7 @@ import distutils.version
 from .model import FITS
 from .window import MainWindow
 from .model import Data, ListOfFiles
+from .controller import Controller
 
 def compare_versions(a, b):
     "return True if a is greater than or equal to b"
