@@ -183,7 +183,7 @@ class Order(object):
                     print(xp, pixel)
                 temp.append(x)
             print('-----')
-            print(temp)
+            # print(temp)0
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
             peaks = np.ones((size, len(temp)), dtype=np.int)
@@ -295,6 +295,8 @@ class HRS(FITS):
         self.mean = self.data.mean()
         self.std = self.data.std()
         self.counter = 0
+        self._zoom1 = 100
+        
 
     def __repr__(self):
         color = 'blue'
@@ -376,10 +378,9 @@ class HRS(FITS):
         self.ax1 = fig.add_subplot(grid[:-1, 0])
         self.ax2 = fig.add_subplot(grid[0:3, 1])
         self.ax3 = fig.add_subplot(grid[3:, 1], label='x')
-        self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)  # This creates a second plot on top of ax3. This way, we can plot multiple stuff at the same location, while still controlling the behaviour individually
+        self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)
         cbax1 = fig.add_subplot(grid[-1, 0])
         fig.subplots_adjust(wspace=0.3, hspace=2.2)
-        self._zoom1 = 100
 
         # Convenience names
         ax1 = self.ax1
@@ -567,7 +568,7 @@ class Extract(object):
                     orderlength = 4040
             try:
                 dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line, :orderlength], 'Sky': extracted_data[line-1, :orderlength], 'Order': [o for i in range(orderlength)]}))
-            except IndexError:
+            except (IndexError, ValueError):
                 continue
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
