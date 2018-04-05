@@ -567,7 +567,13 @@ class Extract(object):
                 else:
                     orderlength = 4040
             try:
-                dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Sky': extracted_data[line, :orderlength], 'Object': extracted_data[line-1, :orderlength], 'Order': [o for i in range(orderlength)]}))
+                dex = dex.append(pd.DataFrame(
+                    {
+                    'Wavelength': a['Wavelength'],
+                    'Sky': extracted_data[line, :orderlength],
+                    'Object': extracted_data[line-1, :orderlength],
+                    'Order': [o for i in range(orderlength)]}
+                    ))
             except (IndexError, ValueError):
                 continue
         if 'HBDET' in self.hrsfile.chip:
