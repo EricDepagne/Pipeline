@@ -598,7 +598,9 @@ class Extract(object):
         return dex
     
     def save(self):
-        
+        """
+        Saving the DataFrame to disk.
+        """
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
         else:
