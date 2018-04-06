@@ -516,7 +516,6 @@ class Extract(object):
         from astropy.stats import sigma_clip
         orders = orders.assign(CosmicRaysSky=orders['Sky'])
         orders = orders.assign(CosmicRaysObject=orders['Object'])
-        print(orders.head())
         for o in orders.Order.unique():
             filt = orders.Order == o
             crs = sigma_clip(orders.Sky[filt])
@@ -585,10 +584,10 @@ class Extract(object):
             try:
                 dex = dex.append(pd.DataFrame(
                     {
-                    'Wavelength': a['Wavelength'],
-                    'Sky': extracted_data[line, :orderlength],
-                    'Object': extracted_data[line-1, :orderlength],
-                    'Order': [o for i in range(orderlength)]}
+                        'Wavelength': a['Wavelength'],
+                        'Sky': extracted_data[line, :orderlength],
+                        'Object': extracted_data[line-1, :orderlength],
+                        'Order': [o for i in range(orderlength)]}
                     ))
             except (IndexError, ValueError):
                 continue
