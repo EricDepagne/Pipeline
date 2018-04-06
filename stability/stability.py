@@ -509,6 +509,21 @@ class Extract(object):
         self.hrsfile = hrsscience
         self.orders = self._extract_orders(orderposition.extracted, self.hrsfile.data)
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
+        self.wlcrorders = self._cosmicrays(self.worders)
+    
+    def _cosmicrays(self, orders):
+        from astropy.stats import sigma_clip
+        orders = orders.assign(CosmicRaysSky=orders['Sky'])
+        orders = orders.assign(CosmicRaysObject=orders['Object'])
+        print(orders.head())
+        for o in orders.Order.unique():
+            filt = orders.Order == o
+            crs = sigma_clip(orders.Sky[filt])
+            cro = sigma_clip(orders.Object[filt])
+            orders.loc[orders.Order == o,['CosmicRaysSky']] = orders.Sky[filt][~crs.mask]
+            orders.loc[orders.Order == o,['CosmicRaysObject']] = orders.Object[filt][~cro.mask]
+        return orders
+        
 
     def _extract_orders(self, positions, data):
         """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
