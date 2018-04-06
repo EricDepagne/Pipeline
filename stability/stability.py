@@ -510,6 +510,7 @@ class Extract(object):
         self.orders = self._extract_orders(orderposition.extracted, self.hrsfile.data)
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
         self.wlcrorders = self._cosmicrays(self.worders)
+        self.save()
     
     def _cosmicrays(self, orders):
         from astropy.stats import sigma_clip
@@ -591,18 +592,20 @@ class Extract(object):
                     ))
             except (IndexError, ValueError):
                 continue
+        dex = dex.reset_index()
+        # Reordering the columns
+        dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
+        return dex
+    
+    def save(self):
+        
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
         else:
             ext = 'R'
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
         print(name)
-        dex.to_csv(name, compression='gzip')
-        # Removing the duplicate indices from the append()
-        dex = dex.reset_index()
-        # Reordering the columns
-        dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
-        return dex
+        self.wlcrorders.to_csv(name, compression='gzip')
 
 
 class ListOfFiles(object):
