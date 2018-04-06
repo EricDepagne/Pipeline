@@ -183,7 +183,7 @@ class Order(object):
                     print(xp, pixel)
                 temp.append(x)
             print('-----')
-            print(temp)
+            # print(temp)0
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
             peaks = np.ones((size, len(temp)), dtype=np.int)
@@ -295,6 +295,8 @@ class HRS(FITS):
         self.mean = self.data.mean()
         self.std = self.data.std()
         self.counter = 0
+        self._zoom1 = 100
+        
 
     def __repr__(self):
         color = 'blue'
@@ -376,10 +378,9 @@ class HRS(FITS):
         self.ax1 = fig.add_subplot(grid[:-1, 0])
         self.ax2 = fig.add_subplot(grid[0:3, 1])
         self.ax3 = fig.add_subplot(grid[3:, 1], label='x')
-        self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)  # This creates a second plot on top of ax3. This way, we can plot multiple stuff at the same location, while still controlling the behaviour individually
+        self.ax4 = fig.add_subplot(grid[3:, 1], label='y', frameon=False)
         cbax1 = fig.add_subplot(grid[-1, 0])
         fig.subplots_adjust(wspace=0.3, hspace=2.2)
-        self._zoom1 = 100
 
         # Convenience names
         ax1 = self.ax1
@@ -508,6 +509,22 @@ class Extract(object):
         self.hrsfile = hrsscience
         self.orders = self._extract_orders(orderposition.extracted, self.hrsfile.data)
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
+        self.wlcrorders = self._cosmicrays(self.worders)
+        self.save()
+    
+    def _cosmicrays(self, orders):
+        from astropy.stats import sigma_clip
+        orders = orders.assign(CosmicRaysSky=orders['Sky'])
+        orders = orders.assign(CosmicRaysObject=orders['Object'])
+        print(orders.head())
+        for o in orders.Order.unique():
+            filt = orders.Order == o
+            crs = sigma_clip(orders.Sky[filt])
+            cro = sigma_clip(orders.Object[filt])
+            orders.loc[orders.Order == o,['CosmicRaysSky']] = orders.Sky[filt][~crs.mask]
+            orders.loc[orders.Order == o,['CosmicRaysObject']] = orders.Object[filt][~cro.mask]
+        return orders
+        
 
     def _extract_orders(self, positions, data):
         """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
@@ -566,21 +583,31 @@ class Extract(object):
                 else:
                     orderlength = 4040
             try:
-                dex = dex.append(pd.DataFrame({'Wavelength': a['Wavelength'], 'Object': extracted_data[line, :orderlength], 'Sky': extracted_data[line-1, :orderlength], 'Order': [o for i in range(orderlength)]}))
-            except IndexError:
+                dex = dex.append(pd.DataFrame(
+                    {
+                    'Wavelength': a['Wavelength'],
+                    'Sky': extracted_data[line, :orderlength],
+                    'Object': extracted_data[line-1, :orderlength],
+                    'Order': [o for i in range(orderlength)]}
+                    ))
+            except (IndexError, ValueError):
                 continue
+        dex = dex.reset_index()
+        # Reordering the columns
+        dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
+        return dex
+    
+    def save(self):
+        """
+        Saving the DataFrame to disk.
+        """
         if 'HBDET' in self.hrsfile.chip:
             ext = 'B'
         else:
             ext = 'R'
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
         print(name)
-        dex.to_csv(name, compression='gzip')
-        # Removing the duplicate indices from the append()
-        dex = dex.reset_index()
-        # Reordering the columns
-        dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
-        return dex
+        self.wlcrorders.to_csv(name, compression='gzip')
 
 
 class ListOfFiles(object):
@@ -689,3 +716,4 @@ if __name__ == "__main__":
                         default='.')
     args = parser.parse_args()
     datadir = Path(args.datadir)
+    
