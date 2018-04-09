@@ -559,7 +559,7 @@ class Extract(object):
                 continue
             # orderwidth = 30
             for i in x:
-                orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
+                orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()/orderwidth
 # TODO:
 # avant de sommer les pixels, tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
 # Normaliser au nombre de pixels, peut-être.
