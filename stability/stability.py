@@ -557,7 +557,7 @@ class Extract(object):
                 print("Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
             except ValueError:
                 continue
-            orderwidth = 30
+            # orderwidth = 30
             for i in x:
                 orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
 # TODO:
