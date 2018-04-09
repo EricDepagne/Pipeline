@@ -196,7 +196,8 @@ class Order(object):
     def identify_orders(self, pts):
         """
         This function extracts the real location of the orders
-        The input parameter is a numpy array containing the probable location of the orders. It has been filtered to remove the false detection of the algorithm.
+        The input parameter is a numpy array containing the probable location of the orders.
+        It has been filtered to remove the false detection of the algorithm.
 
         """
         o = np.zeros_like(pts)
@@ -204,7 +205,8 @@ class Order(object):
         p = np.where((pts[2, 1:] - pts[2, :-1]) > 10)[0]
         print('changement à', p, len(p))
 # The indices will allow us to know when to switch row in order to follow the orders.
-# The first one has to be zero and the last one the size of the orders, so that the automatic procedure picks them properly
+# The first one has to be zero and the last one the size of the orders.
+# This is so that the automatic procedure picks them properly
         indices = [0] + list(p+1) + [pts.shape[1]]
         print('\nindices : ', indices)
         for i in range(pts.shape[0]):
@@ -222,7 +224,6 @@ class Order(object):
                 o[i, indices[j]:indices[j + 1]] = arr1
         return o
 
-# Un moyen d'aller plus vite, c'est de vectoriser le calcul des fits. Cela se fait avec np.vectorize une fois qu'on a défini des fonctions qui vont faire un calcul sur un élément des tableaux. C'est dans find_orders, vgf et vadd.
     def _gaussian_fit(self, a, k):
         from astropy.modeling import fitting, models
         fitter = fitting.SLSQPLSQFitter()
@@ -296,13 +297,16 @@ class HRS(FITS):
         self.std = self.data.std()
         self.counter = 0
         self._zoom1 = 100
-        
 
     def __repr__(self):
         color = 'blue'
         if 'HR' in self.chip:
             color = 'red'
-        description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(target=self.name, color=color, x=self.data.shape[0], y=self.data.shape[1])
+        description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(
+            target=self.name,
+            color=color,
+            x=self.data.shape[0],
+            y=self.data.shape[1])
         return description
 
     def prepare_data(self, hrsfile):
@@ -396,7 +400,10 @@ class HRS(FITS):
         self.plot1 = ax1.imshow(data, vmin=self.dataminzs, vmax=self.datamaxzs)
         ax1.title.set_text('CCD')
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='bottom')
-        zoomeddata = self.data[np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom, np.int(self.data.shape[1]/2)-zoom:np.int(self.data.shape[1]/2)+zoom]
+        zoomeddata = self.data[
+            np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom,
+            np.int(self.data.shape[1]//2)-zoom:np.int(self.data.shape[1]//2)+zoom
+            ]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
         # We need to tidy the bottom right plot a little bit first
         # Ax3 first
@@ -408,7 +415,7 @@ class HRS(FITS):
         self.ax3.set_ylabel('Intensity', color=ax3.color)
         self.ax3.xaxis.set_label_position('bottom')
         self.ax3.yaxis.set_label_position('left')
-        # Ax4 
+        # Ax4
         self.ax4.tick_params(axis='x', colors=ax4.color)
         self.ax4.tick_params(axis='y', colors=ax4.color)
         self.ax4.xaxis.tick_top()
@@ -511,23 +518,24 @@ class Extract(object):
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
         self.wlcrorders = self._cosmicrays(self.worders)
         self.save()
-    
+
     def _cosmicrays(self, orders):
         from astropy.stats import sigma_clip
         orders = orders.assign(CosmicRaysSky=orders['Sky'])
         orders = orders.assign(CosmicRaysObject=orders['Object'])
-        print(orders.head())
         for o in orders.Order.unique():
             filt = orders.Order == o
             crs = sigma_clip(orders.Sky[filt])
             cro = sigma_clip(orders.Object[filt])
-            orders.loc[orders.Order == o,['CosmicRaysSky']] = orders.Sky[filt][~crs.mask]
-            orders.loc[orders.Order == o,['CosmicRaysObject']] = orders.Object[filt][~cro.mask]
+            orders.loc[orders.Order == o, ['CosmicRaysSky']] = orders.Sky[filt][~crs.mask]
+            orders.loc[orders.Order == o, ['CosmicRaysObject']] = orders.Object[filt][~cro.mask]
         return orders
-        
 
     def _extract_orders(self, positions, data):
-        """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes la limite inférieure, le centre et la limite supérieure des ordres.
+        """ positions est un array à 3 dimensions représentant pour chaque point des ordres detectes :
+        la limite inférieure,
+        le centre,
+        la limite supérieure des ordres.
         [:,:,0] est la limite inférieure
         [:,:,1] le centre,
         [:,:,2] la limite supérieure
@@ -549,10 +557,11 @@ class Extract(object):
                 print("Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
             except ValueError:
                 continue
-            orderwidth = 30
+            # orderwidth = 30
             for i in x:
                 orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
-# TODO: avant de sommer les pixels, il serait bon de tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
+# TODO:
+# avant de sommer les pixels, tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
 # Normaliser au nombre de pixels, peut-être.
         return orders
 
@@ -567,7 +576,8 @@ class Extract(object):
         try:
             pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
         except FileNotFoundError:
-            print("File {hrsfile} not found, can't do a wavelength calibration.".format(hrsfile=self.hrsfile.file.parent/pyhrsfile))
+            print("File {hrsfile} not found, can't do a wavelength calibration.".format(
+                hrsfile=self.hrsfile.file.parent/pyhrsfile))
             return None
         list_orders = np.unique(pyhrs_data[1].data['Order'])
         dex = pd.DataFrame()
@@ -585,10 +595,10 @@ class Extract(object):
             try:
                 dex = dex.append(pd.DataFrame(
                     {
-                    'Wavelength': a['Wavelength'],
-                    'Sky': extracted_data[line, :orderlength],
-                    'Object': extracted_data[line-1, :orderlength],
-                    'Order': [o for i in range(orderlength)]}
+                        'Wavelength': a['Wavelength'],
+                        'Sky': extracted_data[line, :orderlength],
+                        'Object': extracted_data[line-1, :orderlength],
+                        'Order': [o for i in range(orderlength)]}
                     ))
             except (IndexError, ValueError):
                 continue
@@ -596,7 +606,7 @@ class Extract(object):
         # Reordering the columns
         dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
         return dex
-    
+
     def save(self):
         """
         Saving the DataFrame to disk.
@@ -607,7 +617,7 @@ class Extract(object):
             ext = 'R'
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
         print('Saving extracted data as {name}'.format(name=name))
-        self.wlcrorders.to_csv(name, compression='gzip')
+        self.wlcrorders.to_csv(name, compression='gzip', index=False)
 
 
 class ListOfFiles(object):
@@ -644,7 +654,7 @@ class ListOfFiles(object):
 
     def calibrations_check(self):
         if not self.flat and not self.bias:
-            print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))
+            print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))  # noqa
 
     def crawl(self, path=None):
         """
@@ -708,7 +718,6 @@ if __name__ == "__main__":
         from sys import exit
         print('You need to upgrade to a version of Astropy greater than 1.3.1')
         exit()
-    # TODO : préparer un objet qui contiendra la configuration complete: répertoire ou se trouvent les données, listera les calibrations à utiliser une fois que le fichier à réduire aura été choisi, préparera les données, etc.
     parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
     parser.add_argument('-d',
                         '--datadir',
@@ -716,4 +725,3 @@ if __name__ == "__main__":
                         default='.')
     args = parser.parse_args()
     datadir = Path(args.datadir)
-    
