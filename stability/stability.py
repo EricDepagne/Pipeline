@@ -617,7 +617,7 @@ class Extract(object):
             ext = 'R'
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
         print('Saving extracted data as {name}'.format(name=name))
-        self.wlcrorders.to_csv(name, compression='gzip')
+        self.wlcrorders.to_csv(name, compression='gzip', index=False)
 
 
 class ListOfFiles(object):
