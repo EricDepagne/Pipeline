@@ -567,6 +567,12 @@ class Extract(object):
 # Normaliser au nombre de pixels, peut-être.
         return orders
 
+    def _ordersums():
+        """
+        Do the summation over the order width to obtain the signal
+        """
+        pass
+
     def _wavelength(self, extracted_data):
         '''
         In order to get the wavelength solution, we will merge the wavelength solution
