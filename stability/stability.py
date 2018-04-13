@@ -559,7 +559,7 @@ class Extract(object):
                 continue
             for i in x:
                 try:
-                    orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()/orderwidth
+                    orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
                 except ValueError:
                     continue
 # TODO:
