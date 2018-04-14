@@ -152,7 +152,7 @@ class Order(object):
         else:
             pixelstart = 50
             pixelstop = frame.data.shape[1]
-            step = 50
+            step = 40
             xb = np.arange(pixelstart, pixelstop, step)
             temp = []
             for pixel in xb:
@@ -245,7 +245,7 @@ class Order(object):
         Returns the lower limit, the center and the upper limit.
         """
         try:
-            return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
+            return(a.mean.value - 3.0 * a.stddev.value, a.mean.value, a.mean.value + 3.0 * a.stddev.value)
         except AttributeError:
             return(np.nan, np.nan, np.nan)
 
@@ -508,6 +508,7 @@ class Extract(object):
 
     .orders : Numpy array containing the extracted orders
     .worders : Numpy array containing the wavelength calibrated extracted orders
+    .wlcrorders : Numpy array containing the wavelength calibrated, cosmic rays corrected orders.
     """
     def __init__(self,
                  orderposition='',
