@@ -123,6 +123,7 @@ class Order(object):
     def __init__(self,
                  hrs=''):
         self.hrs = hrs
+        self.step = 20
         import scipy as sp
         self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
@@ -152,8 +153,8 @@ class Order(object):
         else:
             pixelstart = 50
             pixelstop = frame.data.shape[1]
-            step = 40
-            xb = np.arange(pixelstart, pixelstop, step)
+            # step = 20
+            xb = np.arange(pixelstart, pixelstop, self.step)
             temp = []
             for pixel in xb:
                 if 'LOW' in frame.mode:
@@ -234,7 +235,7 @@ class Order(object):
         y2 = a + 25
         y = np.arange(y1, y2)
         try:
-            gfit = fitter(gaus, y, self.hrs.data[y, 50 * (k + 1)] / self.hrs.data[y, 50 * (k + 1)].max(), verblevel=0)
+            gfit = fitter(gaus, y, self.hrs.data[y, self.step * (k + 1)] / self.hrs.data[y, self.step * (k + 1)].max(), verblevel=0)
         except IndexError:
             return
         return gfit
@@ -245,7 +246,7 @@ class Order(object):
         Returns the lower limit, the center and the upper limit.
         """
         try:
-            return(a.mean.value - 3.0 * a.stddev.value, a.mean.value, a.mean.value + 3.0 * a.stddev.value)
+            return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
         except AttributeError:
             return(np.nan, np.nan, np.nan)
 
@@ -515,10 +516,11 @@ class Extract(object):
                  hrsscience=''):
         # self.orderposition = orderposition
         self.hrsfile = hrsscience
+        self.step = orderposition.step
         self.orders = self._extract_orders(orderposition.extracted, self.hrsfile.data)
         self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
         self.wlcrorders = self._cosmicrays(self.worders)
-        self.save()
+        #self.save()
 
     def _cosmicrays(self, orders):
         from astropy.stats import sigma_clip
@@ -550,7 +552,7 @@ class Extract(object):
         x = [i for i in range(npixels)]
         for o in range(2, orders.shape[0]):
             print('Extracting order : ', o)
-            X = [50 * (i + 1) for i in range(positions[o, :, 0].shape[0])]
+            X = [self.step * (i + 1) for i in range(positions[o, :, 0].shape[0])]
             try:
                 foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
                 fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
