@@ -123,7 +123,7 @@ class Order(object):
     def __init__(self,
                  hrs=''):
         self.hrs = hrs
-        self.step = 20
+        self.step = 50
         import scipy as sp
         self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
@@ -151,7 +151,7 @@ class Order(object):
             print("Not a flat, can't determine the position of the orders")
             return None
         else:
-            pixelstart = 50
+            pixelstart = self.step
             pixelstop = frame.data.shape[1]
             # step = 20
             xb = np.arange(pixelstart, pixelstop, self.step)
@@ -180,8 +180,6 @@ class Order(object):
 # We now extract the valid entries from the peaks_cwt()
                 x = xp[~t[xp].mask].copy()
                 # print(pixel, x)
-                if pixel == 3050:
-                    print(xp, pixel)
                 temp.append(x)
             print('-----')
             # print(temp)0
@@ -557,7 +555,7 @@ class Extract(object):
                 foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
                 fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
                 orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
-                print("Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
+                print("↳ Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
             except ValueError:
                 continue
             for i in x:
