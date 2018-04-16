@@ -548,6 +548,13 @@ class Extract(object):
         npixels = orders.shape[1]
         print(orders.shape)
         x = [i for i in range(npixels)]
+        # Sliced orders are not located at the same place as non sliced orders.
+        # This is a crude way of correcting that effect.
+        # It works, so let's do it that way for now.
+        if 'MEDIUM' in self.hrsfile.mode:
+            xshift = 6
+        elif 'LOW' in self.hrsfile.mode:
+            xshift = 0
         for o in range(2, orders.shape[0]):
             print('Extracting order : ', o)
             X = [self.step * (i + 1) for i in range(positions[o, :, 0].shape[0])]
@@ -560,7 +567,7 @@ class Extract(object):
                 continue
             for i in x:
                 try:
-                    orders[o, i] = data[np.int(foinf(i)):np.int(foinf(i)) + orderwidth, i].sum()
+                    orders[o, i] = data[np.int(foinf(i))+xshift :np.int(foinf(i)) + orderwidth + xshift, i].sum()
                 except ValueError:
                     continue
 # TODO:
