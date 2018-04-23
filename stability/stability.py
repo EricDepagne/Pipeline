@@ -244,7 +244,7 @@ class Order(object):
         Returns the lower limit, the center and the upper limit.
         """
         try:
-            return(a.mean.value - 2.7 * a.stddev.value, a.mean.value, a.mean.value + 2.7 * a.stddev.value)
+            return(a.mean.value - 5.0 * a.stddev.value, a.mean.value, a.mean.value + 5.0 * a.stddev.value)
         except AttributeError:
             return(np.nan, np.nan, np.nan)
 
