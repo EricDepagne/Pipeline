@@ -301,11 +301,12 @@ class HRS(FITS):
         color = 'blue'
         if 'HR' in self.chip:
             color = 'red'
-        description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}'.format(
+        description = 'HRS {color} Frame\nSize : {x}x{y}\nObject : {target}\nMode: {mode}'.format(
             target=self.name,
             color=color,
             x=self.data.shape[0],
-            y=self.data.shape[1])
+            y=self.data.shape[1],
+            mode = self.mode)
         return description
 
     def prepare_data(self, hrsfile):
@@ -515,15 +516,21 @@ class Extract(object):
         # self.orderposition = orderposition
         self.hrsfile = hrsscience
         self.step = orderposition.step
-        self.orders = self._extract_orders(orderposition.extracted, self.hrsfile.data)
-        self.worders = self._wavelength(self.orders)  # , pyhrsfile, name)
-        self.wlcrorders = self._cosmicrays(self.worders)
-        #self.save()
+        self.orders = self._extract_orders(
+            orderposition.extracted,
+            self.hrsfile.data)
+        self.worders = self._wavelength(
+            self.orders)  # , pyhrsfile, name)
+        self.wlcrorders = self._cosmicrays(
+            self.worders)
+        # self.save()
 
     def _cosmicrays(self, orders):
         from astropy.stats import sigma_clip
-        orders = orders.assign(CosmicRaysSky=orders['Sky'])
-        orders = orders.assign(CosmicRaysObject=orders['Object'])
+        orders = orders.assign(
+            CosmicRaysSky=orders['Sky'])
+        orders = orders.assign(
+            CosmicRaysObject=orders['Object'])
         for o in orders.Order.unique():
             filt = orders.Order == o
             crs = sigma_clip(orders.Sky[filt])
