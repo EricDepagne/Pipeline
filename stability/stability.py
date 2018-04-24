@@ -503,8 +503,8 @@ class Extract(object):
 
     sciencedata : HRS Science frame that will be extracted. FITS file.
 
-    save : if set to True, then a file with the extracted content will be created. Default is None, thus no saving. Anything else causes an exit.
-
+    save:   if set to True, a file with the extracted content will be created. False (default) prevents saving.
+            Anything else is considered False.
 
     Output:
     -------
@@ -520,11 +520,6 @@ class Extract(object):
         # self.orderposition = orderposition
         self.hrsfile = hrsscience
         self.step = orderposition.step
-        if not self.checksave(save):
-            print('Save must be either True of False. You entered {save}\
-            \nExiting now.'.format(save=save))
-            from sys import exit
-            exit()
 
         self.orders = self._extract_orders(
             orderposition.extracted,
@@ -534,12 +529,14 @@ class Extract(object):
                 self.orders)  # , pyhrsfile, name)
             self.wlcrorders = self._cosmicrays(
                 self.worders)
-        if save:
+        if self.checksave(save):
             self.save()
+
     def checksave(self, save):
-        if isinstance(save, bool):
-            return 1
-        return 0
+        if not isinstance(save, bool):
+            print('Save option must be True or False not {save}\nSaving disabled'.format(save=type(save)))
+            return False
+        return save
 
     def _cosmicrays(self, orders):
         from astropy.stats import sigma_clip
