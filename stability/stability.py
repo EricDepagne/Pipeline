@@ -121,9 +121,11 @@ class Order(object):
     Creates an object that defines the position of the orders.
     """
     def __init__(self,
-                 hrs=''):
+                 hrs='', 
+                 sigma=5.0):
         self.hrs = hrs
         self.step = 50
+        self.sigma = sigma
         import scipy as sp
         self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
@@ -244,7 +246,7 @@ class Order(object):
         Returns the lower limit, the center and the upper limit.
         """
         try:
-            return(a.mean.value - 5.0 * a.stddev.value, a.mean.value, a.mean.value + 5.0 * a.stddev.value)
+            return(a.mean.value - self.sigma * a.stddev.value, a.mean.value, a.mean.value + self.sigma * a.stddev.value)
         except AttributeError:
             return(np.nan, np.nan, np.nan)
 
