@@ -121,7 +121,7 @@ class Order(object):
     Creates an object that defines the position of the orders.
     """
     def __init__(self,
-                 hrs='', 
+                 hrs='',
                  sigma=5.0):
         self.hrs = hrs
         self.step = 50
@@ -309,7 +309,7 @@ class HRS(FITS):
             color=color,
             x=self.data.shape[0],
             y=self.data.shape[1],
-            mode = self.mode)
+            mode=self.mode)
         return description
 
     def prepare_data(self, hrsfile):
@@ -518,6 +518,7 @@ class Extract(object):
     def __init__(self,
                  orderposition='',
                  hrsscience='',
+                 extract=False,
                  save=False):
         # self.orderposition = orderposition
         self.hrsfile = hrsscience
@@ -526,13 +527,16 @@ class Extract(object):
         self.orders = self._extract_orders(
             orderposition.extracted,
             self.hrsfile.data)
-        if 'Science' in self.hrsfile.type:
-            self.worders = self._wavelength(
-                self.orders)  # , pyhrsfile, name)
-            self.wlcrorders = self._cosmicrays(
-                self.worders)
+        if self.extract:
+            self.extract()
         if self.checksave(save):
             self.save()
+
+    def extract(self):
+        self.worders = self._wavelength(
+            self.orders)  # , pyhrsfile, name)
+        self.wlcrorders = self._cosmicrays(
+            self.worders)
 
     def checksave(self, save):
         if not isinstance(save, bool):
@@ -671,6 +675,7 @@ class ListOfFiles(object):
         self.science = []
         self.object = []
         self.sky = []
+        self.specphot = []
         self.crawl()
         self.calibrations_check()
 
@@ -706,6 +711,7 @@ class ListOfFiles(object):
         science = []
         objet = []
         sky = []
+        specphot = []
         path = path if path is not None else self.path
         for item in path.glob('*.fits'):
             if item.name.startswith('H') or item.name.startswith('R'):
@@ -726,6 +732,8 @@ class ListOfFiles(object):
                         bias.append(self.path / item.name)
                     if 'SCI' in h or 'MLT' in h or 'LSP' in h:
                         science.append(self.path / item.name)
+                    if 'SPST' in h:
+                        specphot.append(self.path / item.name)
             if item.name.startswith('pH') or item.name.startswith('pR'):
                 if 'obj' in item.name:
                     objet.append(self.path / item.name)
@@ -740,6 +748,7 @@ class ListOfFiles(object):
         thar.sort()
         objet.sort()
         sky.sort()
+        specphot.sort()
 
         self.science = science
         self.bias = bias
@@ -747,6 +756,7 @@ class ListOfFiles(object):
         self.flat = flat
         self.object = objet
         self.sky = sky
+        self.specphot = specphot
 
 
 if __name__ == "__main__":
