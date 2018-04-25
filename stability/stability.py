@@ -523,16 +523,17 @@ class Extract(object):
         # self.orderposition = orderposition
         self.hrsfile = hrsscience
         self.step = orderposition.step
+        self.extract = extract
 
         self.orders = self._extract_orders(
             orderposition.extracted,
             self.hrsfile.data)
         if self.extract:
-            self.extract()
+            self.extraction()
         if self.checksave(save):
             self.save()
 
-    def extract(self):
+    def extraction(self):
         self.worders = self._wavelength(
             self.orders)  # , pyhrsfile, name)
         self.wlcrorders = self._cosmicrays(
