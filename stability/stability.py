@@ -493,24 +493,52 @@ class Master(object):
                 continue
         t = []
 
+
 class Normalise(object):
     """
     Normalise each order
     """
     def __init__(self,
-                 science):
+                 science,
+                 specphot):
         self.science = science
+        self.specphot = specphot
 
-    def shape(specphot, frac=0.1):
+    def shape(source, field, frac=0.1):
         """
         Determine the shape of an order, by using a Locally Weighted Scatterplot Smoothing method
         One could use a polynomial fitting too
         """
         from statsmodels.api import nonparametric
         lowess = nonparametric.lowess
-        order = specphot.wlcrorders.Order == 90
-        lowessfit = lowess(specphot.wlcrorders.Object[order], specphot.wlcrorders.Wavelength[order], frac=frac)
+        order = source.wlcrorders.Order == 90
+        y = source.wlcrorders.loc[order, [field]].values
+        x = source.wlcrorders.loc[order, ['Wavelength']].values
+        print(x)
+        print(y)
+        lowessfit = lowess(y, x, frac=frac)
+        # lowessfit = lowess(source.wlcrorders.Object[order], source.wlcrorders.Wavelength[order], frac=frac)
         return lowessfit
+
+    def normalise(self, science, shape):
+        """
+        First step, correction of the pixel-pixel variations
+        """
+        fshape = self.shape(self.specphot)
+        # We add one column that will hold the normalisez flux
+        # science.wlcrorders = science.wlcrorders.assign(FlatField=science.wlcrorders.CosmicRaysObject)
+        science.wlcrorders = science.wlcrorders.assign(FlatField=10.)
+        for order in science.wlcrorders.Order.unique():
+            o = science.wlcrorders.Order == order
+            science.wlcrorders.loc[science.wlcrorders.Order == order,
+                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:, 1]
+        return science
+
+    def deblaze(self, science, shape):
+        """
+        We now deblaze the orders to have their flux set to unity
+        """
+        oshape = self.shape(self.science)
 
 
 class Extract(object):
