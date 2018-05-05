@@ -509,7 +509,7 @@ class Normalise(object):
         from statsmodels.api import nonparametric
         lowess = nonparametric.lowess
         order = specphot.wlcrorders.Order == 90
-        lowessfit = lowess(specphot.wlcorders.Object[order], specphot.wlcrorders.Wavelength[order], frac=frac)
+        lowessfit = lowess(specphot.wlcrorders.Object[order], specphot.wlcrorders.Wavelength[order], frac=frac)
         return lowessfit
 
 
