@@ -493,6 +493,25 @@ class Master(object):
                 continue
         t = []
 
+class Normalise(object):
+    """
+    Normalise each order
+    """
+    def __init__(self,
+                 science):
+        self.science = science
+
+    def shape(specphot, frac=0.1):
+        """
+        Determine the shape of an order, by using a Locally Weighted Scatterplot Smoothing method
+        One could use a polynomial fitting too
+        """
+        from statsmodels.api import nonparametric
+        lowess = nonparametric.lowess
+        order = specphot.wlcrorders.Order == 90
+        lowessfit = lowess(specphot.wlcorders.Object[order], specphot.wlcrorders.Wavelength[order], frac=frac)
+        return lowessfit
+
 
 class Extract(object):
     """
