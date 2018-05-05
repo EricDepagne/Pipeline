@@ -503,42 +503,61 @@ class Normalise(object):
                  specphot):
         self.science = science
         self.specphot = specphot
+        self.flatfielded = self.normalise(self.science)
+        self.normalised = self.deblaze(self.science)
 
-    def shape(source, field, frac=0.1):
+    def _shape(self, source, field, o, frac=0.1):
         """
         Determine the shape of an order, by using a Locally Weighted Scatterplot Smoothing method
         One could use a polynomial fitting too
         """
         from statsmodels.api import nonparametric
         lowess = nonparametric.lowess
-        order = source.wlcrorders.Order == 90
-        y = source.wlcrorders.loc[order, [field]].values
-        x = source.wlcrorders.loc[order, ['Wavelength']].values
-        print(x)
-        print(y)
+        order = source.wlcrorders.Order == o
+        y = source.wlcrorders.loc[order, [field]].values.flatten()
+        x = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()
+        # print(x)
+        # print(y)
         lowessfit = lowess(y, x, frac=frac)
         # lowessfit = lowess(source.wlcrorders.Object[order], source.wlcrorders.Wavelength[order], frac=frac)
         return lowessfit
 
-    def normalise(self, science, shape):
+    def normalise(self, science):
         """
         First step, correction of the pixel-pixel variations
         """
-        fshape = self.shape(self.specphot)
+        # fshape = self._shape(self.specphot, 'Object')
         # We add one column that will hold the normalisez flux
-        # science.wlcrorders = science.wlcrorders.assign(FlatField=science.wlcrorders.CosmicRaysObject)
-        science.wlcrorders = science.wlcrorders.assign(FlatField=10.)
+        science.wlcrorders = science.wlcrorders.assign(FlatField=science.wlcrorders.CosmicRaysObject)
         for order in science.wlcrorders.Order.unique():
             o = science.wlcrorders.Order == order
+            fshape = self._shape(self.specphot, 'Object', order)
             science.wlcrorders.loc[science.wlcrorders.Order == order,
                                    ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:, 1]
         return science
 
-    def deblaze(self, science, shape):
+    def deblaze(self, science):
         """
         We now deblaze the orders to have their flux set to unity
         """
-        oshape = self.shape(self.science)
+        # oshape = self._shape(self.science, 'FlatField')
+        science.wlcrorders = science.wlcrorders.assign(Normalised=science.wlcrorders.CosmicRaysObject)
+        science.wlcrorders = science.wlcrorders.assign(oshape=science.wlcrorders.CosmicRaysObject)
+        for order in science.wlcrorders.Order.unique()[2:-1]:
+            o = science.wlcrorders.Order == order
+            # print(order)
+            oshape = self._shape(self.science, 'FlatField', order)
+            print(oshape.shape)
+            if len(oshape) != 2048:
+                os = np.pad(oshape[:, 1], (0, 2048 - len(oshape[:, 1]) % 2048), 'edge')
+            else:
+                os = oshape[:, 1]
+            science.wlcrorders.loc[science.wlcrorders.Order == order,
+                                   ['oshape']] = os
+            print('apres', order, os.shape)
+            science.wlcrorders.loc[science.wlcrorders.Order == order,
+                                   ['Normalised']] = science.wlcrorders.FlatField[o]/os
+        return science
 
 
 class Extract(object):
