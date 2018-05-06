@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import copy
 
 # sys imports
 
@@ -12,18 +13,27 @@ import numpy as np
 
 # astropy imports
 from astropy.io import fits
+from astropy.stats import sigma_clip
+from astropy.visualization import ZScaleInterval
 
 # scipy imports
+import scipy as sp
 from scipy.signal import savgol_filter
 from scipy.signal import find_peaks_cwt
+# Problems when the boundary order has some intense line, like order 65 and Hα.
+from scipy.signal import butter, filtfilt
+
+import numpy.ma as ma
+
+from statsmodels.api import nonparametric
 
 # pandas imports
 import pandas as pd
 
 # matplotlib imports
-
-# astropy imports
-from astropy.visualization import ZScaleInterval
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.colorbar as cb
 
 
 def getshape(orderinf, ordersup):
@@ -32,8 +42,6 @@ def getshape(orderinf, ordersup):
     We suppose that the variations are continuous.
     Thus approximating order n using orders n+1 and n-1 is close enough from reality
     """
-    # Problems when the boundary order has some intense line, like order 65 and Hα.
-    from scipy.signal import butter, filtfilt
     # Now we find the shape, it needs several steps and various fitting/smoothing
     b, a = butter(10, 0.025)
     # the shape of the orders does not vary much between orders, but there can be cosmic rays or emission lines
@@ -55,7 +63,6 @@ class FITS(object):
         """
         Defining what it is to add two HRS objects
         """
-        import copy
         new = copy.copy(self)
         dt = new.data.dtype
 
@@ -77,7 +84,6 @@ class FITS(object):
         Defining what substracting two HRS object is.
 
         """
-        import copy
         new = copy.copy(self)
         dt = new.data.dtype
 
@@ -100,7 +106,6 @@ class FITS(object):
         """
         Define what it is to divide a HRS object
         """
-        import copy
         new = copy.copy(self)
 
         if not isinstance(other, HRS):
@@ -126,7 +131,6 @@ class Order(object):
         self.hrs = hrs
         self.step = 50
         self.sigma = sigma
-        import scipy as sp
         self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
         self.orderguess = self.find_peaks(self.hrs)
@@ -144,7 +148,6 @@ class Order(object):
         The procedure is as follows:
         1 -
         """
-        import numpy.ma as ma
         print(self.spversion)
         splitscipyversion = self.spversion.split('.')
 # To avoid weird detection, we set any value below zero to zero.
@@ -371,12 +374,9 @@ class HRS(FITS):
         Creates a matplotlib window to display the frame
         Adds a small window which is a zoom on where the cursor is
         """
-# Peut-être faire une classe Plot() qui se chargera de tout, et faire que plot() appelle Plot().
-# https://matplotlib.org/examples/animation/subplots.html
-        import matplotlib.pyplot as plt
-        import matplotlib.gridspec as gridspec
-        import matplotlib.colorbar as cb
-# Defining the grid on which the plot will be shown
+        # Peut-être faire une classe Plot() qui se chargera de tout, et faire que plot() appelle Plot().
+        # https://matplotlib.org/examples/animation/subplots.html
+        # Defining the grid on which the plot will be shown
         grid = gridspec.GridSpec(6, 2)
         if fig is None:
             fig = plt.figure(num="HRS Frame visualisation",
@@ -448,7 +448,6 @@ class Master(object):
     """
 
     def makemasterbias(lof):
-        from astropy.io import fits
         blue = []
         red = []
         for b in lof.bias:
@@ -481,7 +480,6 @@ class Master(object):
         ListOfFiles.update(lof, mrfile)
 
     def makemasterflat(lof):
-        from astropy.io import fits
         blue = []
         red = []
         for b in lof.flat:
@@ -511,7 +509,6 @@ class Normalise(object):
         Determine the shape of an order, by using a Locally Weighted Scatterplot Smoothing method
         One could use a polynomial fitting too
         """
-        from statsmodels.api import nonparametric
         lowess = nonparametric.lowess
         order = source.wlcrorders.Order == o
         # Because of the weird shape of the orders, we need to split the fit into two separate fits
@@ -622,7 +619,6 @@ class Extract(object):
         return save
 
     def _cosmicrays(self, orders):
-        from astropy.stats import sigma_clip
         orders = orders.assign(
             CosmicRaysSky=orders['Sky'])
         orders = orders.assign(

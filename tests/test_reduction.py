@@ -4,7 +4,7 @@
 
 
 import unittest
-from stability import set_parameters
+from pipeline.stability import set_parameters
 from astropy.io import fits
 
 
