@@ -4,7 +4,7 @@ Pipeline thing
 
 Short summary goes here.
 
-Dependancies
+Dependencies
 ************
 
 * Fill deps here;
