@@ -506,7 +506,7 @@ class Normalise(object):
         self.flatfielded = self.normalise(self.science)
         self.normalised = self.deblaze(self.science)
 
-    def _shape(self, source, field, o, frac=0.1):
+    def _shape(self, source, field, o, frac=0.05):
         """
         Determine the shape of an order, by using a Locally Weighted Scatterplot Smoothing method
         One could use a polynomial fitting too
@@ -514,13 +514,19 @@ class Normalise(object):
         from statsmodels.api import nonparametric
         lowess = nonparametric.lowess
         order = source.wlcrorders.Order == o
-        y = source.wlcrorders.loc[order, [field]].values.flatten()
-        x = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()
+        # Because of the weird shape of the orders, we need to split the fit into two separate fits
+        # The break is at pixel 1650
+        bk = 1650
+        ya = source.wlcrorders.loc[order, [field]].values.flatten()[:bk]
+        xa = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[:bk]
+        yb = source.wlcrorders.loc[order, [field]].values.flatten()[bk:]
+        xb = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[bk:]
         # print(x)
         # print(y)
-        lowessfit = lowess(y, x, frac=frac)
+        lowessfita = lowess(ya, xa, frac=frac)
+        lowessfitb = lowess(yb, xb, frac=frac)
         # lowessfit = lowess(source.wlcrorders.Object[order], source.wlcrorders.Wavelength[order], frac=frac)
-        return lowessfit
+        return np.concatenate((lowessfita, lowessfitb))
 
     def normalise(self, science):
         """
@@ -548,10 +554,14 @@ class Normalise(object):
             # print(order)
             oshape = self._shape(self.science, 'FlatField', order)
             print(oshape.shape)
-            if len(oshape) != 2048:
-                os = np.pad(oshape[:, 1], (0, 2048 - len(oshape[:, 1]) % 2048), 'edge')
+            orderlength = science.hrsfile.data.shape[1]
+            if orderlength > 4000:
+                orderlength = 4040
+            if len(oshape) != orderlength:
+                os = np.pad(oshape[:, 1], (0, orderlength - len(oshape[:, 1]) % orderlength), 'edge')
             else:
                 os = oshape[:, 1]
+            print(os.shape)
             science.wlcrorders.loc[science.wlcrorders.Order == order,
                                    ['oshape']] = os
             print('apres', order, os.shape)
