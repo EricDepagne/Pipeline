@@ -527,7 +527,7 @@ class Normalise(object):
 
     def normalise(self, science):
         """
-        First step, correction of the pixel-pixel variations
+        Correction of the pixel-pixel variations
         """
         # fshape = self._shape(self.specphot, 'Object')
         # We add one column that will hold the normalisez flux
@@ -541,9 +541,11 @@ class Normalise(object):
 
     def deblaze(self, science):
         """
-        We now deblaze the orders to have their flux set to unity
+        Deblaze the orders to have their flux set to unity
         """
         # oshape = self._shape(self.science, 'FlatField')
+        # Two new columns needed, one to store the shape of the orders
+        # one to stor the deblazed orders.
         science.wlcrorders = science.wlcrorders.assign(Normalised=science.wlcrorders.CosmicRaysObject)
         science.wlcrorders = science.wlcrorders.assign(oshape=science.wlcrorders.CosmicRaysObject)
         for order in science.wlcrorders.Order.unique()[2:-1]:
