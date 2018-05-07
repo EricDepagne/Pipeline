@@ -568,6 +568,9 @@ class Normalise(object):
                                    ['Normalised']] = science.wlcrorders.FlatField[o]/os
         return science
 
+    def order_merge(self, science):
+        pass
+
 
 class Extract(object):
     """
