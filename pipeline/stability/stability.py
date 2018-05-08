@@ -569,7 +569,10 @@ class Normalise(object):
         return science
 
     def order_merge(self, science):
-        pass
+        """
+        Merge the orders
+        """
+        d = 1
 
 
 class Extract(object):
