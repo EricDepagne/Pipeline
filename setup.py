@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='pipeline',
+    name='hrspy',
     version=__import__('pipeline').__version__,
     description=__import__('pipeline').__doc__,
     long_description=open('README.rst').read(),
     author='Eric Depagne',
-    author_email='eric@saao.ac.za',
+    author_email='eric@depagne.org',
     url='https://github.com/EricDepagne/pipeline',
     license='BSD 3',
     packages=find_packages(exclude=['tests*']),
