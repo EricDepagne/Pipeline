@@ -127,7 +127,7 @@ class Order(object):
     """
     def __init__(self,
                  hrs='',
-                 sigma=5.0):
+                 sigma=3.0):
         self.hrs = hrs
         self.step = 50
         self.sigma = sigma
@@ -238,7 +238,10 @@ class Order(object):
         y2 = a + 25
         y = np.arange(y1, y2)
         try:
-            gfit = fitter(gaus, y, self.hrs.data[y, self.step * (k + 1)] / self.hrs.data[y, self.step * (k + 1)].max(), verblevel=0)
+            gfit = fitter(gaus,
+                          y,
+                          self.hrs.data[y, self.step * (k + 1)] / self.hrs.data[y, self.step * (k + 1)].max(),
+                          verblevel=0)
         except IndexError:
             return
         return gfit
@@ -501,8 +504,25 @@ class Normalise(object):
                  specphot):
         self.science = science
         self.specphot = specphot
+        self.exptime = specphot.hrsfile.header['exptime']
+        # self.select_source(self.specphot)
         self.flatfielded = self.normalise(self.science)
         self.normalised = self.deblaze(self.science)
+    
+    def select_source(self, specphot):
+        """
+        If the source is a flatfield, we create a pandas DataFrame that has the correct attributes
+        """
+        if not hasattr(specphot, 'type'):
+            print('Flatfield frame used to normalise')
+        return
+
+    def _shape_2(self, x, y, frac=0.05):
+        """
+        Determine the shape of an order
+        """
+        lowess = nonparametric.lowess
+        return (lowess(x, y, frac=frac))
 
     def _shape(self, source, field, o, frac=0.05):
         """
@@ -512,19 +532,25 @@ class Normalise(object):
         lowess = nonparametric.lowess
         order = source.wlcrorders.Order == o
         # Because of the weird shape of the orders, we need to split the fit into two separate fits
-        # The break is at pixel 1650
+        # The break is at pixel 1650 Nope. It varies along the chip.
         bk = 1650
         ya = source.wlcrorders.loc[order, [field]].values.flatten()[:bk]
         xa = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[:bk]
         yb = source.wlcrorders.loc[order, [field]].values.flatten()[bk:]
         xb = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[bk:]
         # print(x)
-        # print(y)
+        # print('ya: {ya}\nyb :{yb}'.format(ya=ya, yb=yb))
+        print('Max : ', self._maxorder(ya), self._maxorder(yb), "\n")
         lowessfita = lowess(ya, xa, frac=frac)
         lowessfitb = lowess(yb, xb, frac=frac)
         # lowessfit = lowess(source.wlcrorders.Object[order], source.wlcrorders.Wavelength[order], frac=frac)
         return np.concatenate((lowessfita, lowessfitb))
 
+    def _maxorder(self, y):
+        if y.max() == 0:
+            return 1
+        return np.nanmax(y)
+    
     def normalise(self, science):
         """
         Correction of the pixel-pixel variations
@@ -535,8 +561,10 @@ class Normalise(object):
         for order in science.wlcrorders.Order.unique():
             o = science.wlcrorders.Order == order
             fshape = self._shape(self.specphot, 'Object', order)
+            print(fshape.max())
+            fshapen = fshape[:,1]/np.nanmax(fshape[:,1])
             science.wlcrorders.loc[science.wlcrorders.Order == order,
-                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:, 1]
+                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:,1]
         return science
 
     def deblaze(self, science):
@@ -561,6 +589,7 @@ class Normalise(object):
             else:
                 os = oshape[:, 1]
             print(os.shape)
+            print(os.max())
             science.wlcrorders.loc[science.wlcrorders.Order == order,
                                    ['oshape']] = os
             print('apres', order, os.shape)
@@ -572,7 +601,14 @@ class Normalise(object):
         """
         Merge the orders
         """
-        d = 1
+        normalised_orders = science.wlcrorders.Order.unique()[::-1]
+        for (blue, red) in zip(normalised_orders[:-1], normalised_orders[1:]):
+            # We find the overlapping region in pixel space.
+            print(blue, red)
+            lower = science.wlcrorders.Wavelength[science.wlcrorders.Order == blue]
+            upper = science.wlcrorders.Wavelength[science.wlcrorders.Order == red]
+            xlower = np.where(upper.values > lower.values.min())
+            xupper = np.where(lower.values < lower.values.max())
 
 
 class Extract(object):
