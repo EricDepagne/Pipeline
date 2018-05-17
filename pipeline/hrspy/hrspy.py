@@ -506,7 +506,7 @@ class Normalise(object):
         self.specphot = specphot
         self.exptime = specphot.hrsfile.header['exptime']
         # self.select_source(self.specphot)
-        self.flatfielded = self.normalise(self.science)
+        self.flatfielded = self.deflat(self.science)
         self.normalised = self.deblaze(self.science)
     
     def select_source(self, specphot):
@@ -551,7 +551,7 @@ class Normalise(object):
             return 1
         return np.nanmax(y)
     
-    def normalise(self, science):
+    def deflat(self, science):
         """
         Correction of the pixel-pixel variations
         """
