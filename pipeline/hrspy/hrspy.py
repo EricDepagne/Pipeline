@@ -784,8 +784,8 @@ class ListOfFiles(object):
     List all the  HRS raw files in the directory
     Returns the description of the files
     """
-    def __init__(self, datadir):
-        self.path = datadir
+    def __init__(self, datadir, caldir):
+        self.path = [caldir, datadir]
         self.thar = []
         self.bias = []
         self.flat = []
@@ -816,7 +816,7 @@ class ListOfFiles(object):
         if not self.flat and not self.bias:
             print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))  # noqa
 
-    def crawl(self, path=None):
+    def crawl(self, path):
         """
         Function that goes through the files in datadir
         and sets the attributes of the ListOfFiles to the proper value:
@@ -829,7 +829,8 @@ class ListOfFiles(object):
         objet = []
         sky = []
         specphot = []
-        path = path if path is not None else self.path
+        path = self.path
+        print('dir: {dir}'.format(dir=path))
         for item in path.glob('*.fits'):
             if item.name.startswith('H') or item.name.startswith('R'):
                 # print('File : {file}'.format(file=path / item.name))
