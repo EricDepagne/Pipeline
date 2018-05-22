@@ -7,6 +7,7 @@ import copy
 # python imports
 from pathlib import Path
 import argparse
+import re
 
 # numpy imports
 import numpy as np
@@ -817,8 +818,66 @@ class ListOfFiles(object):
             print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))  # noqa
 
     def crawl(self, path):
+        thar = []
+        bias = []
+        flat = []
+        science = []
+        objet = []
+        sky = []
+        specphot = []
+        filelist = []
+        # print(path)
+        # We build the list of files in the directories
+        for p in path:
+            for f in p.glob('*.fits'):
+                # if f.name.startswith('H') or f.name.startswith('R'):
+                if re.match(r'^p?(H|R)', f.name):
+                # We have a HRS raw file
+                    filelist.append(p/f.name)
+        # we now extract the information
+        for file in filelist:
+            print('fichier : {file}'.format(file=file))
+            if 'obj' in file.name:
+                objet.append(file)
+                continue
+            if 'sky' in file.name:
+                sky.append(file)
+                continue
+            with fits.open(file) as fh:
+                print('opened file {file}'.format(file=file))
+                h = fh[0].header['propid']
+                if 'STABLE' in h:
+                    thar.append(file)
+                if 'CAL_FLAT' in h:
+                    flat.append(file)
+                if 'BIAS' in h:
+                    bias.append(file)
+                if 'SCI' in h or 'MLT' in h or 'LSP' in h:
+                    science.append(file)
+                if 'SPST' in h:
+                    specphot.append(file)
+# We sort the lists to avoid any side effects
+        science.sort()
+        bias.sort()
+        flat.sort()
+        thar.sort()
+        objet.sort()
+        sky.sort()
+        specphot.sort()
+
+        self.science = science
+        self.bias = bias
+        self.thar = thar
+        self.flat = flat
+        self.object = objet
+        self.sky = sky
+        self.specphot = specphot
+
+        # return filelist
+        
+    def crawlold(self, path):
         """
-        Function that goes through the files in datadir and caldir
+        Function that goes through the files in datadir
         and sets the attributes of the ListOfFiles to the proper value:
         self.thar is the list of ThAr files, self.science is the list of science files, aso.
         """
