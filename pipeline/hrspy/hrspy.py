@@ -843,6 +843,8 @@ class ListOfFiles(object):
             if 'sky' in file.name:
                 sky.append(file)
                 continue
+            if 'spec' in file.name:
+                continue
             with fits.open(file) as fh:
                 print('opened file {file}'.format(file=file))
                 h = fh[0].header['propid']
