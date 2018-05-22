@@ -8,6 +8,7 @@ import copy
 from pathlib import Path
 import argparse
 import re
+from tqdm import tqdm
 
 # numpy imports
 import numpy as np
@@ -835,8 +836,7 @@ class ListOfFiles(object):
                 # We have a HRS raw file
                     filelist.append(p/f.name)
         # we now extract the information
-        for file in filelist:
-            print('fichier : {file}'.format(file=file))
+        for file in tqdm(filelist):
             if 'obj' in file.name:
                 objet.append(file)
                 continue
@@ -846,7 +846,6 @@ class ListOfFiles(object):
             if 'spec' in file.name:
                 continue
             with fits.open(file) as fh:
-                print('opened file {file}'.format(file=file))
                 h = fh[0].header['propid']
                 if 'STABLE' in h:
                     thar.append(file)
