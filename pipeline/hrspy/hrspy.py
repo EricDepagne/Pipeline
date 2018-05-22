@@ -818,7 +818,7 @@ class ListOfFiles(object):
 
     def crawl(self, path):
         """
-        Function that goes through the files in datadir
+        Function that goes through the files in datadir and caldir
         and sets the attributes of the ListOfFiles to the proper value:
         self.thar is the list of ThAr files, self.science is the list of science files, aso.
         """
@@ -829,7 +829,6 @@ class ListOfFiles(object):
         objet = []
         sky = []
         specphot = []
-        path = self.path
         print('dir: {dir}'.format(dir=path))
         for item in path.glob('*.fits'):
             if item.name.startswith('H') or item.name.startswith('R'):
@@ -887,16 +886,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
     parser.add_argument('-d',
                         '--datadir',
+                        nargs='*',
                         help='Directory where the data to be reduced are',
                         default='.')
-    parser.add_argument('-c',
-                        '--caldir',
-                        help='Directory where the calibrations are. Defaults to datadir',
-                        default=None)
     args = parser.parse_args()
-    if args.caldir is None:
-        args.caldir = args.datadir
-    caldir = Path(args.caldir)
+    print('Directories crawled: {caldir} and {datadir}'.format(caldir=args.datadir, datadir=args.datadir))
     datadir = Path(args.datadir)
-    print('Directories crawled: {caldir} and {datadir}'.format(caldir=caldir, datadir=datadir))
-    # wdir = 
