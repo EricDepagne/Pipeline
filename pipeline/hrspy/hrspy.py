@@ -836,7 +836,7 @@ class ListOfFiles(object):
                 # We have a HRS raw file
                     filelist.append(p/f.name)
         # we now extract the information
-        for file in tqdm(filelist):
+        for file in tqdm(filelist, desc='Files processed', unit=' files'):
             if 'obj' in file.name:
                 objet.append(file)
                 continue
