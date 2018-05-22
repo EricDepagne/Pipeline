@@ -562,9 +562,9 @@ class Normalise(object):
             o = science.wlcrorders.Order == order
             fshape = self._shape(self.specphot, 'Object', order)
             print(fshape.max())
-            fshapen = fshape[:,1]/np.nanmax(fshape[:,1])
+            fshapen = fshape[:, 1]/np.nanmax(fshape[:, 1])
             science.wlcrorders.loc[science.wlcrorders.Order == order,
-                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:,1]
+                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:, 1]
         return science
 
     def deblaze(self, science):
@@ -888,5 +888,14 @@ if __name__ == "__main__":
                         '--datadir',
                         help='Directory where the data to be reduced are',
                         default='.')
+    parser.add_argument('-c',
+                        '--caldir',
+                        help='Directory where the calibrations are. Defaults to datadir',
+                        default=None)
     args = parser.parse_args()
+    if args.caldir is None:
+        args.caldir = args.datadir
+    caldir = Path(args.caldir)
     datadir = Path(args.datadir)
+    print('Directories crawled: {caldir} and {datadir}'.format(caldir=caldir, datadir=datadir))
+    # wdir = 
