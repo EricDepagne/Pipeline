@@ -784,8 +784,8 @@ class ListOfFiles(object):
     List all the  HRS raw files in the directory
     Returns the description of the files
     """
-    def __init__(self, datadir, caldir):
-        self.path = [caldir, datadir]
+    def __init__(self, datadir):
+        self.path = datadir
         self.thar = []
         self.bias = []
         self.flat = []
@@ -793,7 +793,7 @@ class ListOfFiles(object):
         self.object = []
         self.sky = []
         self.specphot = []
-        self.crawl()
+        self.crawl(self.path)
         self.calibrations_check()
 
     def update(self, file):
