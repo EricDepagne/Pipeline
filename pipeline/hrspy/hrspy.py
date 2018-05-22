@@ -874,65 +874,6 @@ class ListOfFiles(object):
         self.specphot = specphot
 
         # return filelist
-        
-    def crawlold(self, path):
-        """
-        Function that goes through the files in datadir
-        and sets the attributes of the ListOfFiles to the proper value:
-        self.thar is the list of ThAr files, self.science is the list of science files, aso.
-        """
-        thar = []
-        bias = []
-        flat = []
-        science = []
-        objet = []
-        sky = []
-        specphot = []
-        print('dir: {dir}'.format(dir=path))
-        for item in path.glob('*.fits'):
-            if item.name.startswith('H') or item.name.startswith('R'):
-                # print('File : {file}'.format(file=path / item.name))
-                with fits.open(path / item.name) as fh:
-                    try:
-                        h = fh[0].header['PROPID']
-                        t = fh[0].header['TIME-OBS']
-                        d = fh[0].header['DATE-OBS']
-                    except KeyError:
-                        # no propid, probably not a SALT FITS file.
-                        continue
-                    if 'STABLE' in h:
-                        thar.append(self.path / item.name)
-                    if 'CAL_FLAT' in h:
-                        flat.append(self.path / item.name)
-                    if 'BIAS' in h:
-                        bias.append(self.path / item.name)
-                    if 'SCI' in h or 'MLT' in h or 'LSP' in h:
-                        science.append(self.path / item.name)
-                    if 'SPST' in h:
-                        specphot.append(self.path / item.name)
-            if item.name.startswith('pH') or item.name.startswith('pR'):
-                if 'obj' in item.name:
-                    objet.append(self.path / item.name)
-                if 'sky' in item.name:
-                    sky.append(self.path / item.name)
-
-        # files.update({'Science': science, 'ThAr': thar, 'Bias': bias, 'Flat': flat})
-# We sort the lists to avoid any side effects
-        science.sort()
-        bias.sort()
-        flat.sort()
-        thar.sort()
-        objet.sort()
-        sky.sort()
-        specphot.sort()
-
-        self.science = science
-        self.bias = bias
-        self.thar = thar
-        self.flat = flat
-        self.object = objet
-        self.sky = sky
-        self.specphot = specphot
 
 
 if __name__ == "__main__":
