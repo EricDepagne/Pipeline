@@ -892,6 +892,4 @@ if __name__ == "__main__":
                         help='Directory where the data to be reduced are',
                         default='.')
     args = parser.parse_args()
-    print('Directories crawled: {datadir}'.format(datadir=type(args.datadir)))
     datadir = [Path(i) for i in args.datadir]
-    print('Data dir : {datadir}'.format(datadir=datadir))
