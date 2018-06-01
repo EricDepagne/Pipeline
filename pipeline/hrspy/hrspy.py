@@ -833,7 +833,7 @@ class ListOfFiles(object):
             for f in p.glob('*.fits'):
                 # if f.name.startswith('H') or f.name.startswith('R'):
                 if re.match(r'^p?(H|R)', f.name):
-                # We have a HRS raw file
+                    # We have a HRS raw file
                     filelist.append(p/f.name)
         # we now extract the information
         for file in tqdm(filelist, desc='Files processed', unit=' files'):
