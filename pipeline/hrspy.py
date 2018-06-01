@@ -9,6 +9,7 @@ from pathlib import Path
 import argparse
 import re
 from tqdm import tqdm
+import logging
 
 # numpy imports
 import numpy as np
@@ -37,6 +38,11 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colorbar as cb
 
+logging.basicConfig(level=logging.DEBUG,
+                   filename='HRS_Pipeline.log',
+                   format='%(asctime)s :: %(levelname)s :: %(message)s'
+                   )
+logger = logging.getLogger(__name__)
 
 def getshape(orderinf, ordersup):
     """
@@ -837,6 +843,7 @@ class ListOfFiles(object):
                     filelist.append(p/f.name)
         # we now extract the information
         for file in tqdm(filelist, desc='Files processed', unit=' files'):
+            logger.info('Parsing file %s', f)
             if 'obj' in file.name:
                 objet.append(file)
                 continue
