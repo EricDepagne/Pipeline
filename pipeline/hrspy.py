@@ -185,14 +185,14 @@ class Order(object):
             xb = np.arange(pixelstart, pixelstop, self.step)
             temp = []
             for pixel in xb:
-                if 'LOW' in frame.mode:
-                    window = 31
-                    polyorder = 5
-                    f = 15
-                else:
-                    window = 37
-                    polyorder = 3
-                    f = 1
+            if 'LOW' in frame.mode:
+                window = 31
+                polyorder = 5
+                f = 15
+            else:
+                window = 37
+                polyorder = 3
+                f = 1
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
                 mask = test < c[1]/f
