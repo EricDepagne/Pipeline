@@ -22,7 +22,7 @@ from astropy.stats import sigma_clip
 from astropy.visualization import ZScaleInterval
 
 # scipy imports
-import scipy as sp
+# import scipy as sp
 from scipy.signal import savgol_filter
 from scipy.signal import find_peaks_cwt
 # Problems when the boundary order has some intense line, like order 65 and Hα.
@@ -54,6 +54,7 @@ logger.addHandler(file_handler)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 logger.addHandler(console_handler)
+
 
 def getshape(orderinf, ordersup):
     """
@@ -96,7 +97,10 @@ class FITS(object):
             return NotImplemented
         new.data[new.data <= 0] = 0
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
-        logger.info('Updating the ZScale range of %s after addition to %s and %s', self.file.name,new.dataminzs, new.datamaxzs)
+        logger.info('Updating the ZScale range of %s after addition to %s and %s',
+                    self.file.name,
+                    new.dataminzs,
+                    new.datamaxzs)
         new.data = np.asarray(new.data, dtype=dt)
         return new
 
@@ -113,14 +117,18 @@ class FITS(object):
                 new.data = np.asarray(self.data, dtype=np.float64) - other
                 print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
             else:
-                logger.error('Trying to substract two incompatible types : %s and %s', type(self), type(other))
+                logger.error('Trying to substract two incompatible types : %s and %s',
+                             type(self),
+                             type(other))
                 return NotImplemented
         else:
             new.data = np.asarray(self.data, dtype=np.float64) - np.asarray(other.data, dtype=np.float64)
 # updating the datamin and datamax attributes after the substraction.
         new.data[new.data <= 0] = 0
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
-        logger.info('Updating the ZScale range after substraction to %s and %s', new.dataminzs, new.datamaxzs)
+        logger.info('Updating the ZScale range after substraction to %s and %s',
+                    new.dataminzs,
+                    new.datamaxzs)
         new.data = np.asarray(new.data, dtype=dt)
 
         return new
@@ -154,7 +162,6 @@ class Order(object):
         self.hrs = hrs
         self.step = 50
         self.sigma = sigma
-        self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
         self.orderguess = self.find_peaks(self.hrs)
         self.order = self.identify_orders(self.orderguess)
