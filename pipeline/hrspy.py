@@ -10,6 +10,7 @@ import argparse
 import re
 from tqdm import tqdm
 import logging
+from logging.handlers import RotatingFileHandler
 
 # numpy imports
 import numpy as np
@@ -38,11 +39,23 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colorbar as cb
 
-logging.basicConfig(level=logging.DEBUG,
-                   filename='HRS_Pipeline.log',
-                   format='%(asctime)s :: %(levelname)s :: %(message)s'
-                   )
+# logging.basicConfig(level=logging.DEBUG,
+                #    filename='HRS_Pipeline.log',
+                #    format='%(asctime)s :: %(levelname)s :: %(message)s'
+                #    )
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+# We want to define two logging streams:
+# One in a log file.
+file_handler = RotatingFileHandler('HRSPipeline.log', 'a', 1000000, 1)
+formatter = logging.Formatter('%(asctime)s ::: %(levelname)s :: %(message)s')
+# file_handler.setlevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+# And One on the console
+console_handler = logging.StreamHandler()
+# console_handler.setLevel(logging.DEBUG)
+logger.addHandler(console_handler)
 
 def getshape(orderinf, ordersup):
     """
@@ -251,6 +264,7 @@ class Order(object):
                           self.hrs.data[y, self.step * (k + 1)] / self.hrs.data[y, self.step * (k + 1)].max(),
                           verblevel=0)
         except IndexError:
+            logger.error('Index %s outside range', a)
             return
         return gfit
 
@@ -843,7 +857,7 @@ class ListOfFiles(object):
                     filelist.append(p/f.name)
         # we now extract the information
         for file in tqdm(filelist, desc='Files processed', unit=' files'):
-            logger.info('Parsing file %s', f)
+            logger.info('Parsing file %s', file)
             if 'obj' in file.name:
                 objet.append(file)
                 continue
