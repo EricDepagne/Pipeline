@@ -162,6 +162,7 @@ class Order(object):
 
     def check_type(self, frame):
         if 'Flat field' not in frame.name:
+            logger.error('The frame %s is not a flat-field', frame.file.name)
             return False
         return True
 
@@ -179,12 +180,12 @@ class Order(object):
             print("Not a flat, can't determine the position of the orders")
             return None
         else:
+            logger.info('Starting the order identification process.')
             pixelstart = self.step
             pixelstop = frame.data.shape[1]
             # step = 20
             xb = np.arange(pixelstart, pixelstop, self.step)
             temp = []
-            for pixel in xb:
             if 'LOW' in frame.mode:
                 window = 31
                 polyorder = 5
@@ -193,6 +194,7 @@ class Order(object):
                 window = 37
                 polyorder = 3
                 f = 1
+            for pixel in xb:
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
                 mask = test < c[1]/f
