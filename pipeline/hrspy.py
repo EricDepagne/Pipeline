@@ -14,6 +14,7 @@ from logging.handlers import RotatingFileHandler
 
 # numpy imports
 import numpy as np
+import numpy.ma as ma
 
 # astropy imports
 from astropy.io import fits
@@ -26,9 +27,6 @@ from scipy.signal import savgol_filter
 from scipy.signal import find_peaks_cwt
 # Problems when the boundary order has some intense line, like order 65 and Hα.
 from scipy.signal import butter, filtfilt
-
-import numpy.ma as ma
-
 from statsmodels.api import nonparametric
 
 # pandas imports
@@ -228,7 +226,7 @@ class Order(object):
         o = np.zeros_like(pts)
         # Detection of the first order shifts.
         p = np.where((pts[2, 1:] - pts[2, :-1]) > 10)[0]
-        print('changement à', p, len(p))
+        logger.debug('changement à %s, %s', p, len(p))
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders.
 # This is so that the automatic procedure picks them properly
