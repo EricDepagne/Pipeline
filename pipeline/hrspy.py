@@ -22,7 +22,7 @@ from astropy.stats import sigma_clip
 from astropy.visualization import ZScaleInterval
 
 # scipy imports
-# import scipy as sp
+import scipy as sp
 from scipy.signal import savgol_filter
 from scipy.signal import find_peaks_cwt
 # Problems when the boundary order has some intense line, like order 65 and Hα.
@@ -162,6 +162,7 @@ class Order(object):
         self.hrs = hrs
         self.step = 50
         self.sigma = sigma
+        self.spversion = sp.__version__
         self.got_flat = self.check_type(self.hrs)
         self.orderguess = self.find_peaks(self.hrs)
         self.order = self.identify_orders(self.orderguess)
