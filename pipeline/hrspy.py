@@ -52,7 +52,7 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 # And One on the console
 console_handler = logging.StreamHandler()
-# console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 logger.addHandler(console_handler)
 
 def getshape(orderinf, ordersup):
@@ -92,9 +92,11 @@ class FITS(object):
         elif isinstance(other, np.float):
             new.data = np.asarray(self.data + other, dtype=np.float64)
         else:
+            logger.error('Trying to add two incompatible types : %s and %s', type(self), type(other))
             return NotImplemented
-        (newdataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
         new.data[new.data <= 0] = 0
+        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        logger.info('Updating the ZScale range of %s after addition to %s and %s', self.file.name,new.dataminzs, new.datamaxzs)
         new.data = np.asarray(new.data, dtype=dt)
         return new
 
@@ -111,12 +113,14 @@ class FITS(object):
                 new.data = np.asarray(self.data, dtype=np.float64) - other
                 print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
             else:
+                logger.error('Trying to substract two incompatible types : %s and %s', type(self), type(other))
                 return NotImplemented
         else:
             new.data = np.asarray(self.data, dtype=np.float64) - np.asarray(other.data, dtype=np.float64)
 # updating the datamin and datamax attributes after the substraction.
-        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
         new.data[new.data <= 0] = 0
+        (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
+        logger.info('Updating the ZScale range after substraction to %s and %s', new.dataminzs, new.datamaxzs)
         new.data = np.asarray(new.data, dtype=dt)
 
         return new
