@@ -8,7 +8,6 @@ import copy
 from pathlib import Path
 import argparse
 import re
-from tqdm import tqdm
 import logging
 
 # numpy imports
@@ -854,7 +853,7 @@ class ListOfFiles(object):
                     # We have a HRS raw file
                     filelist.append(p/f.name)
         # we now extract the information
-        for file in tqdm(filelist, desc='Files processed', unit=' files'):
+        for file in filelist:
             logger.info('Parsing file %s', file)
             if 'obj' in file.name:
                 objet.append(file)
