@@ -36,7 +36,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colorbar as cb
 
+# Using the logger created in the main script
+
 logger = logging.getLogger('HRSP')
+
 
 def getshape(orderinf, ordersup):
     """
@@ -524,7 +527,7 @@ class Normalise(object):
         # self.select_source(self.specphot)
         self.flatfielded = self.deflat(self.science)
         self.normalised = self.deblaze(self.science)
-    
+
     def select_source(self, specphot):
         """
         If the source is a flatfield, we create a pandas DataFrame that has the correct attributes
@@ -566,7 +569,7 @@ class Normalise(object):
         if y.max() == 0:
             return 1
         return np.nanmax(y)
-    
+
     def deflat(self, science):
         """
         Correction of the pixel-pixel variations
