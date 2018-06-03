@@ -10,7 +10,6 @@ import argparse
 import re
 from tqdm import tqdm
 import logging
-from logging.handlers import RotatingFileHandler
 
 # numpy imports
 import numpy as np
@@ -37,24 +36,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colorbar as cb
 
-# logging.basicConfig(level=logging.DEBUG,
-                #    filename='HRS_Pipeline.log',
-                #    format='%(asctime)s :: %(levelname)s :: %(message)s'
-                #    )
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# We want to define two logging streams:
-# One in a log file.
-file_handler = RotatingFileHandler('HRSPipeline.log', 'a', 1000000, 1)
-formatter = logging.Formatter('%(asctime)s ::: %(levelname)s :: %(message)s')
-# file_handler.setlevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-# And One on the console
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-logger.addHandler(console_handler)
-
+logger = logging.getLogger('HRSP')
 
 def getshape(orderinf, ordersup):
     """
@@ -848,6 +830,7 @@ class ListOfFiles(object):
 
     def calibrations_check(self):
         if not self.flat and not self.bias:
+            logger.error("No Flats found in %s, can't continue", self.path)
             print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))  # noqa
 
     def crawl(self, path):
