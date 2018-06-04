@@ -186,6 +186,7 @@ class Order(object):
                 window = 37
                 polyorder = 3
                 f = 1
+            logger.info('Wavelet Transform parameters: Window width: %s, polynomial order: %s, histogram adhoc parmeter: %s', window, polyorder, f)
             for pixel in xb:
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
