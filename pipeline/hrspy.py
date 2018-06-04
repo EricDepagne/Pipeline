@@ -5,8 +5,7 @@ import copy
 # sys imports
 
 # python imports
-from pathlib import Path
-import argparse
+# from pathlib import Path
 import re
 import logging
 
@@ -186,14 +185,14 @@ class Order(object):
                 window = 37
                 polyorder = 3
                 f = 1
-            logger.info('Wavelet Transform parameters: Window width: %s, polynomial order: %s, histogram adhoc parmeter: %s', window, polyorder, f)
+            logger.info('Savitzky-Golay filter parameters: Window width: %s, polynomial order: %s, histogram adhoc parmeter: %s', \
+                        window, polyorder, f)
             for pixel in xb:
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
                 mask = test < c[1]/f
                 t = ma.array(test, mask=mask)
                 if pixel > frame.xpix:
-                    print(pixel)
                     break
                 filtereddata = savgol_filter(t, window, polyorder)
                 xp = find_peaks_cwt(filtereddata, widths=np.arange(1, 20))
@@ -225,7 +224,7 @@ class Order(object):
         o = np.zeros_like(pts)
         # Detection of the first order shifts.
         p = np.where((pts[2, 1:] - pts[2, :-1]) > 10)[0]
-        logger.debug('changement à %s, %s', p, len(p))
+        logger.info('changement à %s, %s', p, len(p))
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders.
 # This is so that the automatic procedure picks them properly
@@ -834,7 +833,6 @@ class ListOfFiles(object):
     def calibrations_check(self):
         if not self.flat and not self.bias:
             logger.error("No Flats found in %s, can't continue", self.path)
-            print('No Flats and no biases found in {datadir}\nGo to https://hrscal.salt.ac.za/ to download the biases and flats that are needed to reduce your science data.'.format(datadir=self.path))  # noqa
 
     def crawl(self, path):
         thar = []
