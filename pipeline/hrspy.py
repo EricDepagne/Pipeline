@@ -855,7 +855,7 @@ class ListOfFiles(object):
                     filelist.append(p/f.name)
         # we now extract the information
         for file in filelist:
-            logger.info('Parsing file %s', file)
+            logger.info('Sorting file %s according to its type.', file)
             if 'obj' in file.name:
                 objet.append(file)
                 continue
@@ -894,20 +894,4 @@ class ListOfFiles(object):
         self.specphot = specphot
 
         # return filelist
-
-
-if __name__ == "__main__":
-    import astropy as ap
-    apv = ap.__version__.split('.')
-    if apv[0] == '1' and int(apv[1]) <= 4:
-        from sys import exit
-        print('You need to upgrade to a version of Astropy greater than 1.3.1')
-        exit()
-    parser = argparse.ArgumentParser(description='HRS Data Reduction pipeline')
-    parser.add_argument('-d',
-                        '--datadir',
-                        nargs='*',
-                        help='Directory where the data to be reduced are',
-                        default='.')
-    args = parser.parse_args()
-    datadir = [Path(i) for i in args.datadir]
+        
