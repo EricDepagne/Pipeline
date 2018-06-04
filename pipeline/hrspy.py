@@ -185,8 +185,7 @@ class Order(object):
                 window = 37
                 polyorder = 3
                 f = 1
-            logger.info('Savitzky-Golay filter parameters: Window width: %s, polynomial order: %s, histogram adhoc parmeter: %s', \
-                        window, polyorder, f)
+            logger.info('Savitzky-Golay filter parameters: Window width: %s, polynomial order: %s, histogram adhoc parmeter: %s', window, polyorder, f)  # noqa
             for pixel in xb:
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
@@ -341,6 +340,7 @@ class HRS(FITS):
         This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
         """
         d = self.hdulist[0].data
+        logger.info('Preparing the format of the data, so the orientation of the blue and the red is identical: Red is up and right')  # noqa
         if self.chip == 'HRDET':
             d = d[:, self.dataX1-1:self.dataX2]
         else:
@@ -532,7 +532,7 @@ class Normalise(object):
         If the source is a flatfield, we create a pandas DataFrame that has the correct attributes
         """
         if not hasattr(specphot, 'type'):
-            print('Flatfield frame used to normalise')
+            logger.info('Flat field used to do the normalisation')
         return
 
     def _shape_2(self, x, y, frac=0.05):
@@ -821,18 +821,20 @@ class ListOfFiles(object):
         the datadir has been parsed
         """
         print('updating')
-        with fits.open(datadir/file) as fh:
+        with fits.open(self.path/file) as fh:
             propid = fh[0].header['propid']
             print(propid)
-            print(datadir/file)
-            if 'BIAS' in propid and datadir/file not in self.bias:
-                self.bias.append(datadir/file)
+            print(self.path/file)
+            if 'BIAS' in propid and self.path/file not in self.bias:
+                self.bias.append(self.path/file)
             else:
                 print('File already included')
 
     def calibrations_check(self):
         if not self.flat and not self.bias:
             logger.error("No Flats found in %s, can't continue", self.path)
+            return False
+        return
 
     def crawl(self, path):
         thar = []
