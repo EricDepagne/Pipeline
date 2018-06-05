@@ -223,7 +223,7 @@ class Order(object):
         o = np.zeros_like(pts)
         # Detection of the first order shifts.
         p = np.where((pts[2, 1:] - pts[2, :-1]) > 10)[0]
-        logger.info('changement à %s, %s', p, len(p))
+        logger.info('Orders jumps at pixels %s', 50*p)
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders.
 # This is so that the automatic procedure picks them properly
@@ -854,12 +854,14 @@ class ListOfFiles(object):
                     # We have a HRS raw file
                     filelist.append(p/f.name)
         # we now extract the information
+        logger.info('Sorting files according to their type.')
         for file in filelist:
-            logger.info('Sorting file %s according to its type.', file)
             if 'obj' in file.name:
+                logger.info('%s is a reduced object file', file.name)
                 objet.append(file)
                 continue
             if 'sky' in file.name:
+                logger.info('%s is a reduced sky file', file.name)
                 sky.append(file)
                 continue
             if 'spec' in file.name:
@@ -867,14 +869,19 @@ class ListOfFiles(object):
             with fits.open(file) as fh:
                 h = fh[0].header['propid']
                 if 'STABLE' in h:
+                    logger.info('%s is a Thorium-Argon calibration', file.name)
                     thar.append(file)
                 if 'CAL_FLAT' in h:
+                    logger.info('%s is a Flat Field calibration', file.name)
                     flat.append(file)
                 if 'BIAS' in h:
+                    logger.info('%s is a Bias calibration', file.name)
                     bias.append(file)
                 if 'SCI' in h or 'MLT' in h or 'LSP' in h:
+                    logger.info('%s is a Science frame', file.name)
                     science.append(file)
                 if 'SPST' in h:
+                    logger.info('%s is a Spectrophotmetric frame', file.name)
                     specphot.append(file)
 # We sort the lists to avoid any side effects
         science.sort()
