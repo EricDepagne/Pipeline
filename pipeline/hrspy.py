@@ -228,18 +228,15 @@ class Order(object):
 # The first one has to be zero and the last one the size of the orders.
 # This is so that the automatic procedure picks them properly
         indices = [0] + list(p+1) + [pts.shape[1]]
-        print('\nindices : ', indices)
         for i in range(pts.shape[0]):
             # The orders come in three section, so we coalesce them
-            print('indice', i)
+            # print('indice', i)
+            logger.info('Locating position of order %i', i)
             ind = np.arange(i, i - (len(p) + 1), -1) + 1
             ind[np.where(ind <= 0)] = 0
             a = ind > 0
             a = a * 1
             for j in range(len(a)):
-                # TODO FIXER CETTE PARTIE LA QUI NE MARCHE PAS ET QUI FOUT LE BORDEL
-                # LE COLLAGE DES ORDRES N'EST PAS CORRECT.
-
                 arr1 = pts[i - j, indices[j]:indices[j + 1]] * a[j]
                 o[i, indices[j]:indices[j + 1]] = arr1
         return o
@@ -271,6 +268,7 @@ class Order(object):
         try:
             return(a.mean.value - self.sigma * a.stddev.value, a.mean.value, a.mean.value + self.sigma * a.stddev.value)
         except AttributeError:
+            logger.error("Can't compute mean and std. Returning NaN instead")
             return(np.nan, np.nan, np.nan)
 
     def find_orders(self, op):
@@ -282,6 +280,7 @@ class Order(object):
         fit = np.zeros_like(op, dtype=object)
         positions = np.zeros((op.shape[0], op.shape[1], 3))
         for i in range(op.shape[1]):
+            logger.info('Computing the extend of order number  %i', i+1)
             tt = vgf(op[:, i], i)
             fit[:, i] = tt
         positions[:, :, 0], positions[:, :, 1], positions[:, :, 2] = vadd(fit)
