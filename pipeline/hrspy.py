@@ -5,7 +5,6 @@ import copy
 # sys imports
 
 # python imports
-# from pathlib import Path
 import re
 import logging
 
@@ -675,7 +674,7 @@ class Extract(object):
 
     def checksave(self, save):
         if not isinstance(save, bool):
-            print('Save option must be True or False not {save}\nSaving disabled'.format(save=type(save)))
+            logger.info('Save option must be True or False, not %s. Saving disabled', type(save))
             return False
         return save
 
