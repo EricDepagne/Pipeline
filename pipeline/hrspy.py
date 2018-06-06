@@ -810,7 +810,7 @@ class ListOfFiles(object):
         self.sky = []
         self.specphot = []
         self.crawl(self.path)
-        self.calibrations_check()
+        # self.calibrations_check()
 
     def update(self, file):
         """
@@ -845,6 +845,8 @@ class ListOfFiles(object):
         filelist = []
         # print(path)
         # We build the list of files in the directories
+        if not isinstance(path, list):
+            path = [path]
         for p in path:
             for f in p.glob('*.fits'):
                 # if f.name.startswith('H') or f.name.startswith('R'):
