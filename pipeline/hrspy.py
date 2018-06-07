@@ -899,6 +899,3 @@ class ListOfFiles(object):
         self.object = objet
         self.sky = sky
         self.specphot = specphot
-
-        # return filelist
-        
