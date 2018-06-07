@@ -5,7 +5,7 @@ from pipeline.hrspy import ListOfFiles
 
 
 def test_listoffile():
-    directory = Path('./pipeline/tests/data')
+    directory = Path('./tests/data')
     lof = ListOfFiles(directory)
     assert(len(lof.bias) == 1)
     assert(len(lof.flat) == 1)
