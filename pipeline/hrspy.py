@@ -304,7 +304,7 @@ class HRS(FITS):
         self.type = self.header['OBSTYPE']
         self.name = self.header['OBJECT']
         self.chip = self.header['DETNAM']
-        self.data = self.prepare_data(self.file)
+        self.data = self.prepare_data()
         self.shape = self.data.shape
         (self.dataminzs, self.datamaxzs) = ZScaleInterval().get_limits(self.data)
         parameters = {'HBDET': {'OrderShift': 83,
@@ -333,7 +333,7 @@ class HRS(FITS):
             mode=self.mode)
         return description
 
-    def prepare_data(self, hrsfile):
+    def prepare_data(self):
         """
         This method sets the orientation of both the red and the blue files to be the same, which is red is up and right
         """
