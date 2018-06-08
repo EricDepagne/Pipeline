@@ -28,5 +28,10 @@ def test_hrs():
     assert (hrs.mode == 'MEDIUM RESOLUTION')
     assert (hrs.type == 'Science')
     assert (hrs.name == 'P3J061950.0-531212')
+    assert (hrs.chip == 'HBDET')
     assert (np.isclose(hrs.dataminzs, 697))
     assert (np.isclose(hrs.datamaxzs, 725.65))
+
+def test_normalise():
+    directory = Path('./tests/data')
+    
