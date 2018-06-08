@@ -525,13 +525,6 @@ class Normalise(object):
         self.flatfielded = self.deflat(self.science)
         self.normalised = self.deblaze(self.science)
 
-    def select_source(self, specphot):
-        """
-        If the source is a flatfield, we create a pandas DataFrame that has the correct attributes
-        """
-        if not hasattr(specphot, 'type'):
-            logger.info('Flat field used to do the normalisation')
-        return
 
     def _shape_2(self, x, y, frac=0.05):
         """
