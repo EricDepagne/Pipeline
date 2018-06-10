@@ -156,6 +156,10 @@ class Order(object):
             return False
         return True
 
+    def save():
+        """ Save the Order object in a csv file
+        """
+
     def find_peaks(self, frame):
         """
         Identifies in a Flat-Field frame where the orders are located
@@ -698,23 +702,24 @@ class Extract(object):
         # data = parameters['data']
         orders = np.zeros((positions.shape[0], data.shape[1]))
         npixels = orders.shape[1]
-        print(orders.shape)
         x = [i for i in range(npixels)]
         # Sliced orders are not located at the same place as non sliced orders.
         # This is a crude way of correcting that effect.
         # It works, so let's do it that way for now.
         if 'MEDIUM' in self.hrsfile.mode:
             xshift = 6
+            logger.info('Extracting a Medium Resolution file. Shifting the location of the orders by %d pixels', xshift)
         elif 'LOW' in self.hrsfile.mode:
             xshift = 0
         for o in range(2, orders.shape[0]):
-            print('Extracting order : ', o)
+            logging.info('Extracting order number %s', o)
             X = [self.step * (i + 1) for i in range(positions[o, :, 0].shape[0])]
             try:
                 foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
                 fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
                 orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
-                print("↳ Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
+                logger.info('Orderwidth : %s', orderwidth)
+                # print("↳ Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
             except ValueError:
                 continue
             for i in x:
@@ -739,7 +744,6 @@ class Extract(object):
         obtained from the pyhrs reduced spectra, with our extracted data
         This is a temporary solution until we have a working wavelength solution.
         '''
-        print(self.hrsfile.file.name)
         pyhrsfile = 'p' + self.hrsfile.file.stem + '_obj' + self.hrsfile.file.suffix
         try:
             pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
@@ -747,6 +751,7 @@ class Extract(object):
             print("File {hrsfile} not found, can't do a wavelength calibration.".format(
                 hrsfile=self.hrsfile.file.parent/pyhrsfile))
             return None
+        logger.info('Using %s to derive the wavelength solution', pyhrsfile)
         list_orders = np.unique(pyhrs_data[1].data['Order'])
         dex = pd.DataFrame()
 
