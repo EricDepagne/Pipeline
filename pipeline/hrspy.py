@@ -712,13 +712,13 @@ class Extract(object):
         elif 'LOW' in self.hrsfile.mode:
             xshift = 0
         for o in range(2, orders.shape[0]):
-            logging.info('Extracting order number %s', o)
+            logger.info('Extracting order number %s', o)
             X = [self.step * (i + 1) for i in range(positions[o, :, 0].shape[0])]
             try:
                 foinf = np.poly1d(np.polyfit(X, positions[o, :, 0], 7))
                 fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
                 orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
-                logger.info('Orderwidth : %s', orderwidth)
+                logger.info('Orderwidth : %s pixels', orderwidth)
                 # print("↳ Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
             except ValueError:
                 continue
@@ -748,15 +748,16 @@ class Extract(object):
         try:
             pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
         except FileNotFoundError:
-            print("File {hrsfile} not found, can't do a wavelength calibration.".format(
-                hrsfile=self.hrsfile.file.parent/pyhrsfile))
+            logger.error('Wavelength calibration file %s not found. Cannot do the wavelength calibration', self.hrsfile.file.parent/pyhrsfile)
+            # print("File {hrsfile} not found, can't do a wavelength calibration.".format(
+                # hrsfile=self.hrsfile.file.parent/pyhrsfile))
             return None
         logger.info('Using %s to derive the wavelength solution', pyhrsfile)
         list_orders = np.unique(pyhrs_data[1].data['Order'])
         dex = pd.DataFrame()
 
         for o in list_orders[::-1]:
-            print('Ordre :', o)
+            logger.info('Calibrating order %d', o)
             a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
             line = 2*(int(o) - self.hrsfile.ordershift)
             orderlength = 2048
@@ -774,6 +775,7 @@ class Extract(object):
                         'Order': [o for i in range(orderlength)]}
                     ))
             except (IndexError, ValueError):
+                logger.error('Error')
                 continue
         dex = dex.reset_index()
         # Reordering the columns
@@ -789,7 +791,7 @@ class Extract(object):
         else:
             ext = 'R'
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
-        print('Saving extracted data as {name}'.format(name=name))
+        logger.info('Saving extracted data as %s', name)
         self.wlcrorders.to_csv(name, compression='gzip', index=False)
 
 
