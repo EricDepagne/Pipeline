@@ -203,10 +203,8 @@ class Order(object):
                     xp = np.array(xp)
 # We now extract the valid entries from the peaks_cwt()
                 x = xp[~t[xp].mask].copy()
-                # print(pixel, x)
                 temp.append(x)
             print('-----')
-            # print(temp)0
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
             peaks = np.ones((size, len(temp)), dtype=np.int)
@@ -233,7 +231,6 @@ class Order(object):
         indices = [0] + list(p+1) + [pts.shape[1]]
         for i in range(pts.shape[0]):
             # The orders come in three section, so we coalesce them
-            # print('indice', i)
             logger.info('Locating position of order %i', i)
             ind = np.arange(i, i - (len(p) + 1), -1) + 1
             ind[np.where(ind <= 0)] = 0
@@ -248,8 +245,6 @@ class Order(object):
         from astropy.modeling import fitting, models
         fitter = fitting.SLSQPLSQFitter()
         gaus = models.Gaussian1D(amplitude=1., mean=a, stddev=5.)
-        # print(gaus)
-        # print(a, k)
         y1 = a - 25
         y2 = a + 25
         y = np.arange(y1, y2)
@@ -551,8 +546,6 @@ class Normalise(object):
         xa = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[:bk]
         yb = source.wlcrorders.loc[order, [field]].values.flatten()[bk:]
         xb = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[bk:]
-        # print(x)
-        # print('ya: {ya}\nyb :{yb}'.format(ya=ya, yb=yb))
         print('Max : ', self._maxorder(ya), self._maxorder(yb), "\n")
         lowessfita = lowess(ya, xa, frac=frac)
         lowessfitb = lowess(yb, xb, frac=frac)
@@ -591,7 +584,6 @@ class Normalise(object):
         science.wlcrorders = science.wlcrorders.assign(oshape=science.wlcrorders.CosmicRaysObject)
         for order in science.wlcrorders.Order.unique()[2:-1]:
             o = science.wlcrorders.Order == order
-            # print(order)
             oshape = self._shape(self.science, 'FlatField', order)
             print(oshape.shape)
             orderlength = science.hrsfile.data.shape[1]
@@ -719,7 +711,6 @@ class Extract(object):
                 fosup = np.poly1d(np.polyfit(X, positions[o, :, 2], 7))
                 orderwidth = np.floor(np.mean(fosup(x) - foinf(x))).astype(int)
                 logger.info('Orderwidth : %s pixels', orderwidth)
-                # print("↳ Largeur de l'ordre : {orderwidth}".format(orderwidth=orderwidth))
             except ValueError:
                 continue
             for i in x:
@@ -749,8 +740,6 @@ class Extract(object):
             pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
         except FileNotFoundError:
             logger.error('Wavelength calibration file %s not found. Cannot do the wavelength calibration', self.hrsfile.file.parent/pyhrsfile)
-            # print("File {hrsfile} not found, can't do a wavelength calibration.".format(
-                # hrsfile=self.hrsfile.file.parent/pyhrsfile))
             return None
         logger.info('Using %s to derive the wavelength solution', pyhrsfile)
         list_orders = np.unique(pyhrs_data[1].data['Order'])
@@ -843,7 +832,6 @@ class ListOfFiles(object):
         sky = []
         specphot = []
         filelist = []
-        # print(path)
         # We build the list of files in the directories
         if not isinstance(path, list):
             path = [path]
