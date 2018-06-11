@@ -166,12 +166,11 @@ class Order(object):
         The procedure is as follows:
         1 -
         """
-        print(self.spversion)
         splitscipyversion = self.spversion.split('.')
 # To avoid weird detection, we set any value below zero to zero.
         data = frame.data.copy()
         if not self.got_flat:
-            print("Not a flat, can't determine the position of the orders")
+            logger.info("The file chosen is not a flat, it's not possible to determine the position of the orders.")
             return None
         else:
             logger.info('Starting the order identification process.')
@@ -204,7 +203,6 @@ class Order(object):
 # We now extract the valid entries from the peaks_cwt()
                 x = xp[~t[xp].mask].copy()
                 temp.append(x)
-            print('-----')
             # Storing the location of the peaks in a numpy array
             size = max([len(i) for i in temp])
             peaks = np.ones((size, len(temp)), dtype=np.int)
@@ -546,7 +544,7 @@ class Normalise(object):
         xa = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[:bk]
         yb = source.wlcrorders.loc[order, [field]].values.flatten()[bk:]
         xb = source.wlcrorders.loc[order, ['Wavelength']].values.flatten()[bk:]
-        print('Max : ', self._maxorder(ya), self._maxorder(yb), "\n")
+        # print('Max : ', self._maxorder(ya), self._maxorder(yb), "\n")
         lowessfita = lowess(ya, xa, frac=frac)
         lowessfitb = lowess(yb, xb, frac=frac)
         # lowessfit = lowess(source.wlcrorders.Object[order], source.wlcrorders.Wavelength[order], frac=frac)
@@ -580,24 +578,28 @@ class Normalise(object):
         # oshape = self._shape(self.science, 'FlatField')
         # Two new columns needed, one to store the shape of the orders
         # one to stor the deblazed orders.
+        logger.info('Creating two new attributes that will store the cosmic ray corrected object and sky')
         science.wlcrorders = science.wlcrorders.assign(Normalised=science.wlcrorders.CosmicRaysObject)
         science.wlcrorders = science.wlcrorders.assign(oshape=science.wlcrorders.CosmicRaysObject)
         for order in science.wlcrorders.Order.unique()[2:-1]:
             o = science.wlcrorders.Order == order
             oshape = self._shape(self.science, 'FlatField', order)
-            print(oshape.shape)
+            # print(oshape.shape)
             orderlength = science.hrsfile.data.shape[1]
             if orderlength > 4000:
+                logger.info('Only 4040 pixels are used for the red file.')
                 orderlength = 4040
             if len(oshape) != orderlength:
+                logger.info('The shape of the order does not have the right length. Padding it with edges values.')
                 os = np.pad(oshape[:, 1], (0, orderlength - len(oshape[:, 1]) % orderlength), 'edge')
             else:
+                logger.info('The shape of the order has the proper length')
                 os = oshape[:, 1]
-            print(os.shape)
-            print(os.max())
+            # print(os.shape)
+            # print(os.max())
             science.wlcrorders.loc[science.wlcrorders.Order == order,
                                    ['oshape']] = os
-            print('apres', order, os.shape)
+            # print('apres', order, os.shape)
             science.wlcrorders.loc[science.wlcrorders.Order == order,
                                    ['Normalised']] = science.wlcrorders.FlatField[o]/os
         return science
@@ -763,8 +765,8 @@ class Extract(object):
                         'Object': extracted_data[line-1, :orderlength],
                         'Order': [o for i in range(orderlength)]}
                     ))
-            except (IndexError, ValueError):
-                logger.error('Error')
+            except (IndexError, ValueError) as e:
+                logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution.",line, o)
                 continue
         dex = dex.reset_index()
         # Reordering the columns
@@ -807,7 +809,7 @@ class ListOfFiles(object):
         in order to take into account the master bias/flats that have been created after
         the datadir has been parsed
         """
-        print('updating')
+        logger.info('Updating the list of files with new entries')
         with fits.open(self.path/file) as fh:
             propid = fh[0].header['propid']
             print(propid)
@@ -815,7 +817,7 @@ class ListOfFiles(object):
             if 'BIAS' in propid and self.path/file not in self.bias:
                 self.bias.append(self.path/file)
             else:
-                print('File already included')
+                logger.info('No need to update the file list, the file %s is already included', self.path/file)
 
     def calibrations_check(self):
         if not self.flat and not self.bias:
