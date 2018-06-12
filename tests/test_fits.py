@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 import numpy as np
 
-from pipeline.hrspy import ListOfFiles, HRS
+from pipeline.hrspy import ListOfFiles, HRS, Extract, Order
 
 
 def test_listoffile():
@@ -32,6 +32,15 @@ def test_hrs():
     assert (np.isclose(hrs.dataminzs, 697))
     assert (np.isclose(hrs.datamaxzs, 725.65))
 
+
 def test_normalise():
     directory = Path('./tests/data')
+    
+
+def test_orders():
+    directory = Path('./tests/data')
+
+
+def test_extract():
+    directory = Path('tests/data')
     
