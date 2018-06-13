@@ -150,6 +150,13 @@ class Order(object):
         self.order = self.identify_orders(self.orderguess)
         self.extracted, self.order_fit = self.find_orders(self.order)
 
+    def __repr__(self):
+        description = "Location of the orders for file {file}".format(
+            file=self.hrs.file.name)
+        logger.info('%s', description)
+        return description
+
+
     def check_type(self, frame):
         if 'Flat field' not in frame.name:
             logger.error('The frame %s is not a flat-field', frame.file.name)
