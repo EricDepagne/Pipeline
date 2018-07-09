@@ -35,7 +35,7 @@ def test_hrs():
 
 def test_normalise():
     directory = Path('./tests/data')
-    
+
 
 def test_orders():
     directory = Path('./tests/data')
@@ -43,4 +43,3 @@ def test_orders():
 
 def test_extract():
     directory = Path('tests/data')
-    
