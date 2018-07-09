@@ -75,7 +75,7 @@ class FITS(object):
         elif isinstance(other, np.float):
             new.data = np.asarray(self.data + other, dtype=np.float64)
         else:
-            logger.error('Trying to add two incompatible types : %s and %s', type(self), type(other))
+            logger.error('Trying to add two incompatible types: %s and %s', type(self), type(other))
             return NotImplemented
         new.data[new.data <= 0] = 0
         (new.dataminzs, new.datamaxzs) = ZScaleInterval().get_limits(new.data)
@@ -95,7 +95,7 @@ class FITS(object):
         dt = new.data.dtype
 
         if not isinstance(other, HRS):
-            if isinstance(other, np.int) or isinstance(other, np.float):
+            if isinstance(other, (np.int, np.float)): 
                 new.data = np.asarray(self.data, dtype=np.float64) - other
                 print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
             else:
@@ -155,7 +155,6 @@ class Order(object):
             file=self.hrs.file.name)
         logger.info('%s', description)
         return description
-
 
     def check_type(self, frame):
         if 'Flat field' not in frame.name:
@@ -529,7 +528,6 @@ class Normalise(object):
         self.flatfielded = self.deflat(self.science)
         self.normalised = self.deblaze(self.science)
 
-
     def _shape_2(self, x, y, frac=0.05):
         """
         Determine the shape of an order
@@ -772,8 +770,8 @@ class Extract(object):
                         'Object': extracted_data[line-1, :orderlength],
                         'Order': [o for i in range(orderlength)]}
                     ))
-            except (IndexError, ValueError) as e:
-                logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution.",line, o)
+            except (IndexError, ValueError):
+                logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution.", line, o)
                 continue
         dex = dex.reset_index()
         # Reordering the columns
