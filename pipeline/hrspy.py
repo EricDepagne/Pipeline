@@ -7,6 +7,8 @@ import copy
 # python imports
 import re
 import logging
+import configparser
+
 
 # numpy imports
 import numpy as np
@@ -296,6 +298,8 @@ class HRS(FITS):
     """
     def __init__(self,
                  hrsfile=''):
+        HRSConfig = configparser.ConfigParser()
+        HRSConfig.read('./HRS.ini')
         self.file = hrsfile
         self.hdulist = fits.open(self.file)
         self.header = self.hdulist[0].header
