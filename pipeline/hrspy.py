@@ -97,7 +97,7 @@ class FITS(object):
         dt = new.data.dtype
 
         if not isinstance(other, HRS):
-            if isinstance(other, (np.int, np.float)): 
+            if isinstance(other, (np.int, np.float)):
                 new.data = np.asarray(self.data, dtype=np.float64) - other
                 print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
             else:
@@ -199,7 +199,7 @@ class Order(object):
             for pixel in xb:
                 test = data[:, pixel]
                 b, c = np.histogram(np.abs(test))
-                mask = test < c[1]/f
+                mask = test < c[1] / f
                 t = ma.array(test, mask=mask)
                 if pixel > frame.xpix:
                     break
@@ -230,11 +230,11 @@ class Order(object):
         o = np.zeros_like(pts)
         # Detection of the first order shifts.
         p = np.where((pts[2, 1:] - pts[2, :-1]) > 10)[0]
-        logger.info('Orders jumps at pixels %s', 50*p)
+        logger.info('Orders jumps at pixels %s', 50 * p)
 # The indices will allow us to know when to switch row in order to follow the orders.
 # The first one has to be zero and the last one the size of the orders.
 # This is so that the automatic procedure picks them properly
-        indices = [0] + list(p+1) + [pts.shape[1]]
+        indices = [0] + list(p + 1) + [pts.shape[1]]
         for i in range(pts.shape[0]):
             # The orders come in three section, so we coalesce them
             logger.info('Locating position of order %i', i)
@@ -284,7 +284,7 @@ class Order(object):
         fit = np.zeros_like(op, dtype=object)
         positions = np.zeros((op.shape[0], op.shape[1], 3))
         for i in range(op.shape[1]):
-            logger.info('Computing the extend of order number  %i', i+1)
+            logger.info('Computing the extend of order number  %i', i + 1)
             tt = vgf(op[:, i], i)
             fit[:, i] = tt
         positions[:, :, 0], positions[:, :, 1], positions[:, :, 2] = vadd(fit)
@@ -299,7 +299,7 @@ class HRS(FITS):
     def __init__(self,
                  hrsfile=''):
         HRSConfig = configparser.ConfigParser()
-        HRSConfig.read('./HRS.ini')
+        HRSConfig.read('./pipeline/HRS.ini')
         self.file = hrsfile
         self.hdulist = fits.open(self.file)
         self.header = self.hdulist[0].header
@@ -314,15 +314,19 @@ class HRS(FITS):
         self.data = self.prepare_data()
         self.shape = self.data.shape
         (self.dataminzs, self.datamaxzs) = ZScaleInterval().get_limits(self.data)
-        parameters = {'HBDET': {'OrderShift': 83,
-                                'XPix': 2048,
-                                'BiasLevel': 690},
-                      'HRDET': {'OrderShift': 52,
-                                'XPix': 4096,
-                                'BiasLevel': 920}}
-        self.biaslevel = parameters[self.chip]['BiasLevel']
-        self.ordershift = parameters[self.chip]['OrderShift']
-        self.xpix = parameters[self.chip]['XPix']
+        # parameters = {'HBDET': {'OrderShift': 83,
+        #                         'XPix': 2048,
+        #                         'BiasLevel': 690},
+        #               'HRDET': {'OrderShift': 52,
+        #                         'XPix': 4096,
+        #                         'BiasLevel': 920}}
+        self.biaslevel = HRSConfig[self.chip]['XPix']
+        # self.biaslevel = parameters[self.chip]['BiasLevel']
+        self.ordershift = np.int(HRSConfig[self.chip]['OrderShift'])
+        # self.ordershift = parameters[self.chip]['OrderShift']
+        self.xpix = np.int(HRSConfig[self.chip]['XPix'])
+        # self.xpix = parameters[self.chip]['XPix']
+        # print('xpix: {xpix}'.format(xpix=self.xpix))
         self.mean = self.data.mean()
         self.std = self.data.std()
         self.counter = 0
@@ -347,9 +351,9 @@ class HRS(FITS):
         d = self.hdulist[0].data
         logger.info('Preparing the format of the data, so the orientation of the blue and the red is identical: Red is up and right')  # noqa
         if self.chip == 'HRDET':
-            d = d[:, self.dataX1-1:self.dataX2]
+            d = d[:, self.dataX1 - 1:self.dataX2]
         else:
-            d = d[::-1, self.dataX1-1:self.dataX2]
+            d = d[::-1, self.dataX1 - 1:self.dataX2]
 #
         return d
 
@@ -430,9 +434,8 @@ class HRS(FITS):
         ax1.title.set_text('CCD')
         cb.Colorbar(ax=cbax1, mappable=self.plot1, orientation='horizontal', ticklocation='bottom')
         zoomeddata = self.data[
-            np.int(self.data.shape[0]//2)-zoom:np.int(self.data.shape[0]//2)+zoom,
-            np.int(self.data.shape[1]//2)-zoom:np.int(self.data.shape[1]//2)+zoom
-            ]
+            np.int(self.data.shape[0] // 2) - zoom:np.int(self.data.shape[0] // 2) + zoom,
+            np.int(self.data.shape[1] // 2) - zoom:np.int(self.data.shape[1] // 2) + zoom]
         self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
         # We need to tidy the bottom right plot a little bit first
         # Ax3 first
@@ -454,8 +457,8 @@ class HRS(FITS):
         self.ax4.xaxis.set_label_position('top')
         self.ax4.yaxis.set_label_position('right')
 
-        self.ax3.plot(self.data[:, np.int(self.data.shape[1]/2)], color=ax3.color)
-        self.ax4.plot(self.data[np.int(self.data.shape[0]/2), :], color=ax4.color)
+        self.ax3.plot(self.data[:, np.int(self.data.shape[1] / 2)], color=ax3.color)
+        self.ax4.plot(self.data[np.int(self.data.shape[0] / 2), :], color=ax4.color)
         ax1.figure.canvas.mpl_connect('motion_notify_event', self._zoom)
         ax1.figure.canvas.mpl_connect('button_press_event', self._plot)
         plt.show()
@@ -473,7 +476,7 @@ class Master(object):
     flat : orders
     """
 
-    def makemasterbias(lof):
+    def makemasterbias(self, lof):
         blue = []
         red = []
         for b in lof.bias:
@@ -489,12 +492,12 @@ class Master(object):
         bshape[:0] = [len(blue)]
         ba = np.concatenate(blue).reshape(bshape)
         mbdata = np.int16(np.average(ba, axis=0))
-        mbfile = b.parent/'bluemasterbias.fits'
+        mbfile = b.parent / 'bluemasterbias.fits'
         rshape = list(red[0].shape)
         rshape[:0] = [len(red)]
         ra = np.concatenate(red).reshape(rshape)
         mrdata = np.int16(np.average(ra, axis=0))
-        mrfile = b.parent/'redmasterbias.fits'
+        mrfile = b.parent / 'redmasterbias.fits'
 
         try:
             fits.writeto(mbfile, mbdata, blueheader, overwrite=True)
@@ -510,9 +513,9 @@ class Master(object):
         red = []
         for b in lof.flat:
             if b.name.startswith('H'):
-                blue.append(b.parent/b.name)
+                blue.append(b.parent / b.name)
             if b.name.startswith('R'):
-                red.append(b.parent/b.name)
+                red.append(b.parent / b.name)
             else:
                 continue
         t = []
@@ -575,9 +578,9 @@ class Normalise(object):
             o = science.wlcrorders.Order == order
             fshape = self._shape(self.specphot, 'Object', order)
             print(fshape.max())
-            fshapen = fshape[:, 1]/np.nanmax(fshape[:, 1])
+            fshapen = fshape[:, 1] / np.nanmax(fshape[:, 1])
             science.wlcrorders.loc[science.wlcrorders.Order == order,
-                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o]/fshape[:, 1]
+                                   ['FlatField']] = science.wlcrorders.CosmicRaysObject[o] / fshape[:, 1]
         return science
 
     def deblaze(self, science):
@@ -610,7 +613,7 @@ class Normalise(object):
                                    ['oshape']] = os
             # print('apres', order, os.shape)
             science.wlcrorders.loc[science.wlcrorders.Order == order,
-                                   ['Normalised']] = science.wlcrorders.FlatField[o]/os
+                                   ['Normalised']] = science.wlcrorders.FlatField[o] / os
         return science
 
     def order_merge(self, science):
@@ -726,7 +729,7 @@ class Extract(object):
                 continue
             for i in x:
                 try:
-                    orders[o, i] = data[np.int(foinf(i))+xshift: np.int(foinf(i)) + orderwidth + xshift, i].sum()
+                    orders[o, i] = data[np.int(foinf(i)) + xshift: np.int(foinf(i)) + orderwidth + xshift, i].sum()
                 except ValueError:
                     continue
 # TODO:
@@ -748,9 +751,9 @@ class Extract(object):
         '''
         pyhrsfile = 'p' + self.hrsfile.file.stem + '_obj' + self.hrsfile.file.suffix
         try:
-            pyhrs_data = fits.open(self.hrsfile.file.parent/pyhrsfile)
+            pyhrs_data = fits.open(self.hrsfile.file.parent / pyhrsfile)
         except FileNotFoundError:
-            logger.error('Wavelength calibration file %s not found. Cannot do the wavelength calibration', self.hrsfile.file.parent/pyhrsfile)
+            logger.error('Wavelength calibration file %s not found. Cannot do the wavelength calibration', self.hrsfile.file.parent / pyhrsfile)
             return None
         logger.info('Using %s to derive the wavelength solution', pyhrsfile)
         list_orders = np.unique(pyhrs_data[1].data['Order'])
@@ -759,7 +762,7 @@ class Extract(object):
         for o in list_orders[::-1]:
             logger.info('Calibrating order %d', o)
             a = pyhrs_data[1].data[np.where(pyhrs_data[1].data['Order'] == o)[0]]
-            line = 2*(int(o) - self.hrsfile.ordershift)
+            line = 2 * (int(o) - self.hrsfile.ordershift)
             orderlength = 2048
             if 'HR' in self.hrsfile.chip:
                 if o == 53:
@@ -771,9 +774,8 @@ class Extract(object):
                     {
                         'Wavelength': a['Wavelength'],
                         'Sky': extracted_data[line, :orderlength],
-                        'Object': extracted_data[line-1, :orderlength],
-                        'Order': [o for i in range(orderlength)]}
-                    ))
+                        'Object': extracted_data[line - 1, :orderlength],
+                        'Order': [o for i in range(orderlength)]}))
             except (IndexError, ValueError):
                 logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution.", line, o)
                 continue
@@ -819,14 +821,14 @@ class ListOfFiles(object):
         the datadir has been parsed
         """
         logger.info('Updating the list of files with new entries')
-        with fits.open(self.path/file) as fh:
+        with fits.open(self.path / file) as fh:
             propid = fh[0].header['propid']
             print(propid)
-            print(self.path/file)
-            if 'BIAS' in propid and self.path/file not in self.bias:
-                self.bias.append(self.path/file)
+            print(self.path / file)
+            if 'BIAS' in propid and self.path / file not in self.bias:
+                self.bias.append(self.path / file)
             else:
-                logger.info('No need to update the file list, the file %s is already included', self.path/file)
+                logger.info('No need to update the file list, the file %s is already included', self.path / file)
 
     def calibrations_check(self):
         if not self.flat and not self.bias:
@@ -851,7 +853,7 @@ class ListOfFiles(object):
                 # if f.name.startswith('H') or f.name.startswith('R'):
                 if re.match(r'^p?(H|R)', f.name):
                     # We have a HRS raw file
-                    filelist.append(p/f.name)
+                    filelist.append(p / f.name)
         # we now extract the information
         logger.info('Sorting files according to their type.')
         for file in filelist:
