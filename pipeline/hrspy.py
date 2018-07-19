@@ -164,7 +164,7 @@ class Order(object):
             return False
         return True
 
-    def save():
+    def save(self):
         """ Save the Order object in a csv file
         """
 
@@ -508,7 +508,7 @@ class Master(object):
         ListOfFiles.update(lof, mbfile)
         ListOfFiles.update(lof, mrfile)
 
-    def makemasterflat(lof):
+    def makemasterflat(self, lof):
         blue = []
         red = []
         for b in lof.flat:
