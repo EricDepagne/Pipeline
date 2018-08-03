@@ -99,7 +99,7 @@ class FITS(object):
         if not isinstance(other, HRS):
             if isinstance(other, (np.int, np.float)):
                 new.data = np.asarray(self.data, dtype=np.float64) - other
-                print('pas HRS', new.data.dtype, new.data.min(), new.data.max())
+                logger.info('Not an HRS object')
             else:
                 logger.error('Trying to substract two incompatible types : %s and %s',
                              type(self),
@@ -655,11 +655,13 @@ class Extract(object):
                  orderposition='',
                  hrsscience='',
                  extract=False,
-                 save=False):
+                 save=False,
+                 savedir=''):
         # self.orderposition = orderposition
         self.hrsfile = hrsscience
         self.step = orderposition.step
         self.extract = extract
+        self.savedir = savedir
 
         self.orders = self._extract_orders(
             orderposition.extracted,
@@ -777,7 +779,7 @@ class Extract(object):
                         'Object': extracted_data[line - 1, :orderlength],
                         'Order': [o for i in range(orderlength)]}))
             except (IndexError, ValueError):
-                logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution.", line, o)
+                logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution for this order.", line, o)
                 continue
         dex = dex.reset_index()
         # Reordering the columns
@@ -793,8 +795,10 @@ class Extract(object):
         else:
             ext = 'R'
         name = self.hrsfile.name + '_' + ext + '.csv.gz'
-        logger.info('Saving extracted data as %s', name)
-        self.wlcrorders.to_csv(name, compression='gzip', index=False)
+        filename = self.savedir.absolute() / name
+        # print(filename)
+        logger.info('Saving extracted data as %s', filename)
+        self.wlcrorders.to_csv(filename, compression='gzip', index=False)
 
 
 class ListOfFiles(object):
