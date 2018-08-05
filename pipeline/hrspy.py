@@ -663,7 +663,7 @@ class Extract(object):
         self.extract = extract
         self.savedir = savedir
 
-        self.orders = self._extract_orders(
+        self.orders, self.widths = self._extract_orders(
             orderposition.extracted,
             self.hrsfile.data)
         if self.extract:
@@ -673,7 +673,8 @@ class Extract(object):
 
     def extraction(self):
         self.worders = self._wavelength(
-            self.orders)  # , pyhrsfile, name)
+            self.orders,
+            self.widths)  # , pyhrsfile, name)
         self.wlcrorders = self._cosmicrays(
             self.worders)
 
@@ -709,6 +710,7 @@ class Extract(object):
 
         # data = parameters['data']
         orders = np.zeros((positions.shape[0], data.shape[1]))
+        widths = np.zeros((positions.shape[0]))
         npixels = orders.shape[1]
         x = [i for i in range(npixels)]
         # Sliced orders are not located at the same place as non sliced orders.
@@ -732,12 +734,13 @@ class Extract(object):
             for i in x:
                 try:
                     orders[o, i] = data[np.int(foinf(i)) + xshift: np.int(foinf(i)) + orderwidth + xshift, i].sum()
+                    widths[o] = orderwidth
                 except ValueError:
                     continue
 # TODO:
 # avant de sommer les pixels, tout mettre dans un np.array, pour pouvoir tenir compte de la rotation de la fente.
 # Normaliser au nombre de pixels, peut-être.
-        return orders
+        return orders, widths
 
     def _ordersums():
         """
@@ -745,7 +748,7 @@ class Extract(object):
         """
         pass
 
-    def _wavelength(self, extracted_data):
+    def _wavelength(self, extracted_data, order_widht):
         '''
         In order to get the wavelength solution, we will merge the wavelength solution
         obtained from the pyhrs reduced spectra, with our extracted data
@@ -775,7 +778,8 @@ class Extract(object):
                 dex = dex.append(pd.DataFrame(
                     {
                         'Wavelength': a['Wavelength'],
-                        'Sky': extracted_data[line, :orderlength],
+                        # We compute the value of the sky per pixel, by dividing each sky order by its computed width.
+                        'Sky': extracted_data[line, :orderlength] / order_widht[line],
                         'Object': extracted_data[line - 1, :orderlength],
                         'Order': [o for i in range(orderlength)]}))
             except (IndexError, ValueError):
