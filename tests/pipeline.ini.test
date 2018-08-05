@@ -1,8 +1,6 @@
 [Directory]
-; Directories where the data are. If more than one is needed, use a comma to separate them
-datadir = ., ./data, /home/eric/Science/Projets/CEMP_SALT/Data/raw/
-; Directory where the reduced files will be saved.
-savedir = .
+datadir = data
+savedir = save
 
 [Logging]
-log_level = INFO
+log_level = log
