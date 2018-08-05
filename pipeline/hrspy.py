@@ -748,7 +748,7 @@ class Extract(object):
         """
         pass
 
-    def _wavelength(self, extracted_data, order_widht):
+    def _wavelength(self, extracted_data, order_width):
         '''
         In order to get the wavelength solution, we will merge the wavelength solution
         obtained from the pyhrs reduced spectra, with our extracted data
@@ -779,15 +779,16 @@ class Extract(object):
                     {
                         'Wavelength': a['Wavelength'],
                         # We compute the value of the sky per pixel, by dividing each sky order by its computed width.
-                        'Sky': extracted_data[line, :orderlength] / order_widht[line],
+                        'Sky': extracted_data[line, :orderlength] / order_width[line],
                         'Object': extracted_data[line - 1, :orderlength],
+                        'OrderWidth': [order_width[line] for i in range(orderlength)],
                         'Order': [o for i in range(orderlength)]}))
             except (IndexError, ValueError):
                 logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution for this order.", line, o)
                 continue
         dex = dex.reset_index()
         # Reordering the columns
-        dex = dex[['Wavelength', 'Object', 'Sky', 'Order']]
+        dex = dex[['Wavelength', 'Object', 'Sky', 'Order', 'OrderWidth']]
         return dex
 
     def save(self):
