@@ -781,7 +781,7 @@ class Extract(object):
                         # We compute the value of the sky per pixel, by dividing each sky order by its computed width.
                         'Sky': extracted_data[line, :orderlength] / order_width[line],
                         'Object': extracted_data[line - 1, :orderlength],
-                        'OrderWidth': [order_width[line-1] for i in range(orderlength)],
+                        'OrderWidth': [order_width[line - 1] for i in range(orderlength)],
                         'Order': [o for i in range(orderlength)]}))
             except (IndexError, ValueError):
                 logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution for this order.", line, o)
