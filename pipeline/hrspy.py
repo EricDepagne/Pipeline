@@ -436,7 +436,8 @@ class HRS(FITS):
         zoomeddata = self.data[
             np.int(self.data.shape[0] // 2) - zoom:np.int(self.data.shape[0] // 2) + zoom,
             np.int(self.data.shape[1] // 2) - zoom:np.int(self.data.shape[1] // 2) + zoom]
-        self.plot2 = ax2.imshow(zoomeddata, vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.plot2 = ax2.imshow(zoomeddata[::-1,:], vmin=self.dataminzs, vmax=self.datamaxzs)
+        ax2.title.set_text('zoom')
         # We need to tidy the bottom right plot a little bit first
         # Ax3 first
         self.ax3.tick_params(axis='x', colors=ax3.color)
