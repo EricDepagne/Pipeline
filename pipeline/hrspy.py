@@ -800,7 +800,7 @@ class Extract(object):
             ext = 'B'
         else:
             ext = 'R'
-        name = self.hrsfile.name + '_' + ext + '.csv.gz'
+        name = self.hrsfile.name + '_xtrct_' + ext + '.csv.gz'
         filename = self.savedir.absolute() / name
         # print(filename)
         logger.info('Saving extracted data as %s', filename)
