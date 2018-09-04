@@ -5,7 +5,10 @@ import numpy as np
 from pipeline.hrspy import ListOfFiles, HRS, Extract, Order
 
 
-def test_listoffile():
+def test_crawler():
+    """
+    Checks whether the crawl function works as expected
+    """
     directory = Path('./tests/data')
     lof = ListOfFiles(directory)
     assert(len(lof.bias) == 1)
@@ -17,10 +20,12 @@ def test_listoffile():
     assert(len(lof.sky) == 1)
 
 
-def test_hrs():
-    pass
+def test_extract_headers():
+    """
+    Checks whether the HRS object is properly created after extracting information from the header
+    """
     directory = Path('./tests/data')
-    hrs = HRS(directory/'test.fits')
+    hrs = HRS(directory/'extract.fits')
     assert (hrs.dataX1 == 27)
     assert (hrs.dataX2 == 2074)
     assert (hrs.dataY1 == 1)
