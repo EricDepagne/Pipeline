@@ -16,7 +16,7 @@ def test_crawler():
     assert(len(lof.thar) == 1)
     assert(len(lof.science) == 3)
     assert(len(lof.specphot) == 1)
-    assert(len(lof.object) == 1)
+    assert(len(lof.object) == 3)
     assert(len(lof.sky) == 1)
 
 
@@ -47,4 +47,10 @@ def test_orders():
 
 
 def test_extract():
+    """
+    Checks whether the wavelength calibrated files are properly read
+    """
     directory = Path('tests/data')
+
+def test_lof():
+    pass
