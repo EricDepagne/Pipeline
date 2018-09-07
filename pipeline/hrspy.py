@@ -24,7 +24,6 @@ import scipy as sp
 from scipy.signal import savgol_filter
 from scipy.signal import find_peaks_cwt
 # Problems when the boundary order has some intense line, like order 65 and Hα.
-from scipy.signal import butter, filtfilt
 from statsmodels.api import nonparametric
 
 # pandas imports
@@ -38,7 +37,6 @@ import matplotlib.colorbar as cb
 # Using the logger created in the main script
 
 logger = logging.getLogger('HRSP')
-
 
 
 class FITS(object):
@@ -416,7 +414,7 @@ class HRS(FITS):
         zoomeddata = self.data[
             np.int(self.data.shape[0] // 2) - zoom:np.int(self.data.shape[0] // 2) + zoom,
             np.int(self.data.shape[1] // 2) - zoom:np.int(self.data.shape[1] // 2) + zoom]
-        self.plot2 = ax2.imshow(zoomeddata[::-1,:], vmin=self.dataminzs, vmax=self.datamaxzs)
+        self.plot2 = ax2.imshow(zoomeddata[::-1, :], vmin=self.dataminzs, vmax=self.datamaxzs)
         ax2.title.set_text('zoom')
         # We need to tidy the bottom right plot a little bit first
         # Ax3 first
