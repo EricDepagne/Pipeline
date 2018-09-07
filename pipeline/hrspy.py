@@ -784,9 +784,12 @@ class Extract(object):
                         'Object': extracted_data[line - 1, :orderlength],
                         'OrderWidth': [order_width[line - 1] for i in range(orderlength)],
                         'Order': [o for i in range(orderlength)]}))
-            except (IndexError, ValueError):
+            except IndexError as e:
                 logger.error("Mismatch between the wavelength file at order %d and the raw data at order %d, can't extract wavelength solution for this order.", line, o)
+                print(o, line)
                 continue
+            except ValueError:
+                print('Value Error')
         dex = dex.reset_index()
         # Reordering the columns
         dex = dex[['Wavelength', 'Object', 'Sky', 'Order', 'OrderWidth']]
@@ -803,8 +806,14 @@ class Extract(object):
         name = self.hrsfile.name + '_xtrct_' + ext + '.csv.gz'
         filename = self.savedir.absolute() / name
         # print(filename)
-        logger.info('Saving extracted data as %s', filename)
-        self.wlcrorders.to_csv(filename, compression='gzip', index=False)
+        try:
+            logger.info('Saving extracted data as %s', filename)
+            self.wlcrorders.to_csv(filename, compression='gzip', index=False)
+        except AttributeError:
+            # Wavelength calibration not done. Saving pixels instead.
+            logger.info('Saving the uncalibrated file to %s', filename)
+            # self.orders.to_csv(filename, compression='gzip', index=False)
+            pd.DataFrame.to_csv(self.orders, filename, compression='gzip', index=False)
 
 
 class ListOfFiles(object):
