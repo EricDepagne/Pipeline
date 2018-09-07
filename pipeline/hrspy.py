@@ -40,26 +40,6 @@ import matplotlib.colorbar as cb
 logger = logging.getLogger('HRSP')
 
 
-def getshape(orderinf, ordersup):
-    """
-    In order to derive the shape of a given order, we use one order after and one order before
-    We suppose that the variations are continuous.
-    Thus approximating order n using orders n+1 and n-1 is close enough from reality
-    """
-    # Now we find the shape, it needs several steps and various fitting/smoothing
-    b, a = butter(10, 0.025)
-    # the shape of the orders does not vary much between orders, but there can be cosmic rays or emission lines
-    # Since it's unlikely that the same pixel is affected on two non contiguous orders, we pick the minimum of the
-    # two orders, and we create an artificial order between them and it's the one that we'll fit.
-    shape = np.minimum(orderinf, ordersup)
-    ysh2 = filtfilt(b, a, shape)
-    x = np.arange(ysh2.shape[0])
-    ysh3 = np.poly1d(np.polyfit(x, ysh2, 11))(x)
-    ysh4 = np.minimum(ysh2, ysh3)
-    ysh5 = np.poly1d(np.polyfit(x, ysh4, 11))(x)
-    # ysh5 fits now the shape of the ThAr order quite well, and we can start from there to identify the lines.
-    return ysh5
-
 
 class FITS(object):
 
