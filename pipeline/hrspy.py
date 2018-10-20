@@ -63,7 +63,7 @@ class FITS(object):
                     self.file.name,
                     new.dataminzs,
                     new.datamaxzs)
-        new.data = np.asarray(new.data, dtype=dt)
+        new.data = np.asarray(new.data, dtype=dt) 
         return new
 
     def __sub__(self, other):
